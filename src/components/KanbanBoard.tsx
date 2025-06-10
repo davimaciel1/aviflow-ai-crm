@@ -1,0 +1,255 @@
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { 
+  MoreHorizontal, 
+  DollarSign, 
+  Calendar, 
+  User, 
+  Phone,
+  Mail,
+  Building,
+  Plus
+} from "lucide-react";
+
+interface Deal {
+  id: string;
+  title: string;
+  value: string;
+  client: string;
+  contact: string;
+  email: string;
+  phone: string;
+  dueDate: string;
+  priority: "low" | "medium" | "high";
+  tasks: { total: number; completed: number };
+}
+
+interface Column {
+  id: string;
+  title: string;
+  deals: Deal[];
+  color: string;
+}
+
+const KanbanBoard = () => {
+  const [columns] = useState<Column[]>([
+    {
+      id: "prospecting",
+      title: "Prospecção",
+      color: "bg-slate-100",
+      deals: [
+        {
+          id: "1",
+          title: "Sistema ERP - TechCorp",
+          value: "R$ 150.000",
+          client: "TechCorp Ltd",
+          contact: "João Silva",
+          email: "joao@techcorp.com",
+          phone: "(11) 99999-9999",
+          dueDate: "2024-06-15",
+          priority: "high",
+          tasks: { total: 5, completed: 2 }
+        },
+        {
+          id: "2",
+          title: "Consultoria Digital - StartupXYZ",
+          value: "R$ 75.000",
+          client: "StartupXYZ",
+          contact: "Maria Santos",
+          email: "maria@startupxyz.com",
+          phone: "(11) 88888-8888",
+          dueDate: "2024-06-20",
+          priority: "medium",
+          tasks: { total: 3, completed: 1 }
+        }
+      ]
+    },
+    {
+      id: "qualification",
+      title: "Qualificação",
+      color: "bg-blue-50",
+      deals: [
+        {
+          id: "3",
+          title: "Website Institucional - ABC Corp",
+          value: "R$ 45.000",
+          client: "ABC Corporation",
+          contact: "Pedro Oliveira",
+          email: "pedro@abccorp.com",
+          phone: "(11) 77777-7777",
+          dueDate: "2024-06-18",
+          priority: "medium",
+          tasks: { total: 4, completed: 3 }
+        }
+      ]
+    },
+    {
+      id: "proposal",
+      title: "Proposta",
+      color: "bg-yellow-50",
+      deals: [
+        {
+          id: "4",
+          title: "App Mobile - RetailPlus",
+          value: "R$ 200.000",
+          client: "RetailPlus",
+          contact: "Ana Costa",
+          email: "ana@retailplus.com",
+          phone: "(11) 66666-6666",
+          dueDate: "2024-06-12",
+          priority: "high",
+          tasks: { total: 6, completed: 4 }
+        }
+      ]
+    },
+    {
+      id: "negotiation",
+      title: "Negociação",
+      color: "bg-orange-50",
+      deals: [
+        {
+          id: "5",
+          title: "Dashboard Analytics - DataCorp",
+          value: "R$ 120.000",
+          client: "DataCorp",
+          contact: "Carlos Lima",
+          email: "carlos@datacorp.com",
+          phone: "(11) 55555-5555",
+          dueDate: "2024-06-14",
+          priority: "high",
+          tasks: { total: 3, completed: 2 }
+        }
+      ]
+    },
+    {
+      id: "won",
+      title: "Fechados",
+      color: "bg-green-50",
+      deals: [
+        {
+          id: "6",
+          title: "E-commerce - ShopMais",
+          value: "R$ 180.000",
+          client: "ShopMais",
+          contact: "Lucas Ferreira",
+          email: "lucas@shopmais.com",
+          phone: "(11) 44444-4444",
+          dueDate: "2024-06-10",
+          priority: "medium",
+          tasks: { total: 8, completed: 8 }
+        }
+      ]
+    }
+  ]);
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-100 text-red-800";
+      case "medium": return "bg-yellow-100 text-yellow-800";
+      case "low": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const DealCard = ({ deal }: { deal: Deal }) => (
+    <Card className="mb-4 hover:shadow-md transition-shadow cursor-pointer">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
+          <Button variant="ghost" size="sm">
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-green-600" />
+          <span className="font-semibold text-green-600">{deal.value}</span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Building className="w-4 h-4" />
+          <span>{deal.client}</span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <User className="w-4 h-4" />
+          <span>{deal.contact}</span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Mail className="w-4 h-4" />
+          <span className="truncate">{deal.email}</span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Phone className="w-4 h-4" />
+          <span>{deal.phone}</span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="w-4 h-4" />
+          <span>{deal.dueDate}</span>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <Badge variant="secondary" className={getPriorityColor(deal.priority)}>
+            {deal.priority}
+          </Badge>
+          <div className="text-xs text-muted-foreground">
+            {deal.tasks.completed}/{deal.tasks.total} tarefas
+          </div>
+        </div>
+        
+        <div className="flex justify-between items-center">
+          <Avatar className="w-6 h-6">
+            <AvatarFallback className="text-xs">
+              {deal.contact.split(' ').map(n => n[0]).join('')}
+            </AvatarFallback>
+          </Avatar>
+          <div className="w-full mx-2 bg-gray-200 rounded-full h-1.5">
+            <div 
+              className="bg-blue-600 h-1.5 rounded-full" 
+              style={{ width: `${(deal.tasks.completed / deal.tasks.total) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="flex gap-6 overflow-x-auto pb-6 min-h-[600px]">
+      {columns.map((column) => (
+        <div key={column.id} className="flex-shrink-0 w-80">
+          <div className={`${column.color} rounded-lg p-4 min-h-full`}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-slate-900">
+                {column.title}
+              </h3>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {column.deals.length}
+                </Badge>
+                <Button variant="ghost" size="sm">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {column.deals.map((deal) => (
+                <DealCard key={deal.id} deal={deal} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default KanbanBoard;
