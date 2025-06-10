@@ -1063,5 +1063,3 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
-
-</edits_to_apply>
