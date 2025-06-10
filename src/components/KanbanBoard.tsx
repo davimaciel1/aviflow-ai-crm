@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   MoreHorizontal, 
   DollarSign, 
@@ -12,7 +14,10 @@ import {
   Phone,
   Mail,
   Building,
-  Plus
+  Plus,
+  Edit3,
+  Check,
+  X
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -41,6 +46,8 @@ interface Column {
 const KanbanBoard = () => {
   const { user } = useAuth();
   const isClientView = user?.role === 'client';
+  const [editingConfidential, setEditingConfidential] = useState<string | null>(null);
+  const [tempConfidentialValue, setTempConfidentialValue] = useState<string>("");
 
   const [columns, setColumns] = useState<Column[]>([
     {
@@ -171,6 +178,31 @@ const KanbanBoard = () => {
       ...column,
       deals: column.deals.filter(deal => deal.clientId === user.clientId)
     }));
+  };
+
+  const handleEditConfidential = (dealId: string, currentValue: string = "") => {
+    setEditingConfidential(dealId);
+    setTempConfidentialValue(currentValue);
+  };
+
+  const handleSaveConfidential = (dealId: string) => {
+    setColumns(prevColumns => 
+      prevColumns.map(column => ({
+        ...column,
+        deals: column.deals.map(deal => 
+          deal.id === dealId 
+            ? { ...deal, confidentialInfo: tempConfidentialValue }
+            : deal
+        )
+      }))
+    );
+    setEditingConfidential(null);
+    setTempConfidentialValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingConfidential(null);
+    setTempConfidentialValue("");
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -304,9 +336,53 @@ const KanbanBoard = () => {
             </div>
             
             {/* Show confidential info only to admins */}
-            {!isClientView && deal.confidentialInfo && (
-              <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
-                <strong>Confidencial:</strong> {deal.confidentialInfo}
+            {!isClientView && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded">
+                <div className="flex items-center justify-between mb-2">
+                  <strong className="text-xs text-red-800">Confidencial:</strong>
+                  {editingConfidential !== deal.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+                
+                {editingConfidential === deal.id ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={tempConfidentialValue}
+                      onChange={(e) => setTempConfidentialValue(e.target.value)}
+                      placeholder="Informações confidenciais..."
+                      className="text-xs min-h-[60px] resize-none"
+                    />
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveConfidential(deal.id)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <Check className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-red-800">
+                    {deal.confidentialInfo || "Clique no ícone de edição para adicionar informações confidenciais"}
+                  </div>
+                )}
               </div>
             )}
             
@@ -387,3 +463,5 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
+
+}
