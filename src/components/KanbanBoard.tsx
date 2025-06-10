@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { 
   User,
   Plus,
@@ -22,7 +24,8 @@ import {
   Video,
   Camera,
   GripVertical,
-  Shield
+  Shield,
+  MoreHorizontal
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -451,34 +454,36 @@ const KanbanBoard = () => {
   };
 
   const handleFileUpload = (type: 'photo' | 'video') => {
-    // Simular upload de arquivo
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = type === 'photo' ? 'image/*' : 'video/*';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        // Aqui você adicionaria a lógica real de upload
         console.log(`Uploading ${type}:`, file.name);
         
-        // Simular adição do anexo à última nota
         const mockUrl = URL.createObjectURL(file);
-        setTempCardData(prev => {
-          const notes = [...(prev.notes || [])];
-          if (notes.length > 0) {
-            const lastNote = { ...notes[notes.length - 1] };
-            lastNote.attachments = [
-              ...(lastNote.attachments || []),
-              {
-                type,
-                url: mockUrl,
-                name: file.name
-              }
-            ];
-            notes[notes.length - 1] = lastNote;
-          }
-          return { ...prev, notes };
-        });
+        
+        // Create a new note with the attachment
+        if (!user) return;
+        
+        const noteWithAttachment: Note = {
+          id: `note_${Date.now()}`,
+          content: `${type === 'photo' ? 'Foto' : 'Vídeo'} adicionado`,
+          author: user.name,
+          authorRole: user.role,
+          timestamp: new Date().toISOString(),
+          attachments: [{
+            type,
+            url: mockUrl,
+            name: file.name
+          }]
+        };
+
+        setTempCardData(prev => ({
+          ...prev,
+          notes: [...(prev.notes || []), noteWithAttachment]
+        }));
       }
     };
     input.click();
@@ -794,7 +799,28 @@ const KanbanBoard = () => {
                           {new Date(note.timestamp).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
-                      <div className="text-blue-800 leading-relaxed">{note.content}</div>
+                      <div className="text-blue-800 leading-relaxed mb-2">{note.content}</div>
+                      {note.attachments && note.attachments.length > 0 && (
+                        <div className="space-y-1">
+                          {note.attachments.map((attachment, idx) => (
+                            <div key={idx}>
+                              {attachment.type === 'photo' ? (
+                                <img 
+                                  src={attachment.url} 
+                                  alt={attachment.name}
+                                  className="max-w-full h-20 object-cover rounded border"
+                                />
+                              ) : (
+                                <video 
+                                  src={attachment.url} 
+                                  controls
+                                  className="max-w-full h-20 rounded border"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {deal.notes.length > 2 && (
@@ -896,26 +922,6 @@ const KanbanBoard = () => {
                                 <h3 className="font-semibold text-slate-900 text-sm flex-1">
                                   {column.title}
                                 </h3>
-                                {!isClientView && (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditStage(column.id, column.title)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit3 className="w-3 h-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteStage(column.id)}
-                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </>
-                                )}
                               </>
                             )}
                           </div>
@@ -925,9 +931,33 @@ const KanbanBoard = () => {
                               {column.deals.length}
                             </Badge>
                             {!isClientView && (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <Plus className="w-3 h-3" />
-                              </Button>
+                              <>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                      <MoreHorizontal className="w-3 h-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                      onClick={() => handleEditStage(column.id, column.title)}
+                                    >
+                                      <Edit3 className="w-3 h-3 mr-2" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDeleteStage(column.id)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="w-3 h-3 mr-2" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1002,7 +1032,7 @@ const KanbanBoard = () => {
 
       {/* Edit Card Sheet */}
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-        <SheetContent side="right" className="w-[600px] sm:w-[700px]">
+        <SheetContent side="right" className="w-[800px] sm:w-[900px]">
           <SheetHeader>
             <SheetTitle>Editar Card</SheetTitle>
             <SheetDescription>
@@ -1133,12 +1163,25 @@ const KanbanBoard = () => {
                             {new Date(note.timestamp).toLocaleString('pt-BR')}
                           </span>
                         </div>
-                        <div className="text-sm text-slate-700 whitespace-pre-wrap">{note.content}</div>
+                        <div className="text-sm text-slate-700 whitespace-pre-wrap mb-2">{note.content}</div>
                         {note.attachments && note.attachments.length > 0 && (
-                          <div className="mt-2 flex gap-2">
+                          <div className="space-y-2">
                             {note.attachments.map((attachment, idx) => (
-                              <div key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                {attachment.type === 'photo' ? '📷' : '🎥'} {attachment.name}
+                              <div key={idx}>
+                                {attachment.type === 'photo' ? (
+                                  <img 
+                                    src={attachment.url} 
+                                    alt={attachment.name}
+                                    className="max-w-full max-h-40 object-cover rounded border"
+                                  />
+                                ) : (
+                                  <video 
+                                    src={attachment.url} 
+                                    controls
+                                    className="max-w-full max-h-40 rounded border"
+                                  />
+                                )}
+                                <p className="text-xs text-slate-500 mt-1">{attachment.name}</p>
                               </div>
                             ))}
                           </div>
