@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +14,9 @@ import {
   Check,
   X,
   Settings,
-  Building
+  Building,
+  Trash2,
+  ArrowRight
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -55,6 +56,8 @@ const KanbanBoard = () => {
   const [editingCard, setEditingCard] = useState<string | null>(null);
   const [tempCardData, setTempCardData] = useState<Partial<Deal>>({});
   const [selectedPipeline, setSelectedPipeline] = useState<string>("sales");
+  const [addingStage, setAddingStage] = useState<boolean>(false);
+  const [newStageTitle, setNewStageTitle] = useState<string>("");
 
   // Lista de empresas disponíveis
   const companies = [
@@ -259,6 +262,62 @@ const KanbanBoard = () => {
     }));
   };
 
+  // Stage management functions
+  const handleAddStage = () => {
+    if (!newStageTitle.trim()) return;
+    
+    const newStageId = `stage_${Date.now()}`;
+    const colors = ["bg-slate-100", "bg-blue-50", "bg-yellow-50", "bg-orange-50", "bg-green-50", "bg-purple-50"];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    setPipelines(prev => prev.map(pipeline => {
+      if (pipeline.id === selectedPipeline) {
+        return {
+          ...pipeline,
+          columns: [...pipeline.columns, {
+            id: newStageId,
+            title: newStageTitle,
+            color: randomColor,
+            deals: []
+          }]
+        };
+      }
+      return pipeline;
+    }));
+    
+    setAddingStage(false);
+    setNewStageTitle("");
+  };
+
+  const handleDeleteStage = (columnId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este stage? Todos os cards serão movidos para o primeiro stage.")) {
+      setPipelines(prev => prev.map(pipeline => {
+        if (pipeline.id === selectedPipeline) {
+          const columnToDelete = pipeline.columns.find(col => col.id === columnId);
+          const firstColumn = pipeline.columns[0];
+          
+          if (!columnToDelete || !firstColumn || columnId === firstColumn.id) return pipeline;
+          
+          const updatedColumns = pipeline.columns.filter(col => col.id !== columnId);
+          
+          // Move deals from deleted column to first column
+          if (columnToDelete.deals.length > 0) {
+            updatedColumns[0] = {
+              ...updatedColumns[0],
+              deals: [...updatedColumns[0].deals, ...columnToDelete.deals]
+            };
+          }
+          
+          return {
+            ...pipeline,
+            columns: updatedColumns
+          };
+        }
+        return pipeline;
+      }));
+    }
+  };
+
   // Stage editing functions
   const handleEditStage = (columnId: string, currentTitle: string) => {
     setEditingStage(columnId);
@@ -286,7 +345,7 @@ const KanbanBoard = () => {
     setTempStageTitle("");
   };
 
-  // Card editing functions
+  // Card editing functions with pipeline selection
   const handleEditCard = (deal: Deal) => {
     setEditingCard(deal.id);
     setTempCardData({
@@ -354,6 +413,49 @@ const KanbanBoard = () => {
   const handleCancelConfidentialEdit = () => {
     setEditingConfidential(null);
     setTempConfidentialValue("");
+  };
+
+  // Move card between pipelines
+  const handleMoveToPipeline = (dealId: string, targetPipelineId: string) => {
+    if (targetPipelineId === selectedPipeline) return;
+    
+    let dealToMove: Deal | null = null;
+    
+    // Remove deal from current pipeline
+    setPipelines(prev => prev.map(pipeline => {
+      if (pipeline.id === selectedPipeline) {
+        const updatedColumns = pipeline.columns.map(col => {
+          const dealIndex = col.deals.findIndex(d => d.id === dealId);
+          if (dealIndex !== -1) {
+            dealToMove = col.deals[dealIndex];
+            return {
+              ...col,
+              deals: col.deals.filter(d => d.id !== dealId)
+            };
+          }
+          return col;
+        });
+        return { ...pipeline, columns: updatedColumns };
+      }
+      return pipeline;
+    }));
+    
+    // Add deal to target pipeline's first column
+    if (dealToMove) {
+      setPipelines(prev => prev.map(pipeline => {
+        if (pipeline.id === targetPipelineId) {
+          const updatedColumns = [...pipeline.columns];
+          if (updatedColumns.length > 0) {
+            updatedColumns[0] = {
+              ...updatedColumns[0],
+              deals: [...updatedColumns[0].deals, dealToMove!]
+            };
+          }
+          return { ...pipeline, columns: updatedColumns };
+        }
+        return pipeline;
+      }));
+    }
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -511,6 +613,28 @@ const KanbanBoard = () => {
                   <SelectItem value="high">Alta</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* Pipeline move option */}
+              {!isClientView && (
+                <div className="border-t pt-3">
+                  <label className="text-xs font-medium text-muted-foreground">Mover para pipeline:</label>
+                  <div className="flex gap-1 mt-1">
+                    {pipelines.filter(p => p.id !== selectedPipeline).map(pipeline => (
+                      <Button
+                        key={pipeline.id}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleMoveToPipeline(deal.id, pipeline.id)}
+                        className="text-xs h-6"
+                      >
+                        <ArrowRight className="w-3 h-3 mr-1" />
+                        {pipeline.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => handleSaveCard(deal.id)}>
                   <Check className="w-4 h-4" />
@@ -689,14 +813,24 @@ const KanbanBoard = () => {
                         {column.title}
                       </h3>
                       {!isClientView && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditStage(column.id, column.title)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditStage(column.id, column.title)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteStage(column.id)}
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   )}
@@ -732,6 +866,45 @@ const KanbanBoard = () => {
               </div>
             </div>
           ))}
+          
+          {/* Add Stage Button */}
+          {!isClientView && (
+            <div className="flex-shrink-0 w-72">
+              {addingStage ? (
+                <div className="bg-slate-50 rounded-lg p-3 border-2 border-dashed border-slate-300">
+                  <Input
+                    value={newStageTitle}
+                    onChange={(e) => setNewStageTitle(e.target.value)}
+                    placeholder="Nome do novo stage..."
+                    className="text-sm mb-2"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleAddStage}>
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setAddingStage(false);
+                      setNewStageTitle("");
+                    }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-lg p-3 border-2 border-dashed border-slate-300 min-h-[100px] flex items-center justify-center">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setAddingStage(true)}
+                    className="text-slate-600 hover:text-slate-900"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Stage
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </DragDropContext>
     </div>
