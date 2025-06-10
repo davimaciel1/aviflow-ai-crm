@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,9 @@ import {
   Check,
   X,
   Camera,
-  Upload
+  Upload,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface ClientUser {
   id: string;
@@ -152,6 +154,19 @@ const ClientsList = () => {
   const [isAddingUser, setIsAddingUser] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<Partial<Client>>({});
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+
+  const toggleClientExpansion = (clientId: string) => {
+    setExpandedClients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clientId)) {
+        newSet.delete(clientId);
+      } else {
+        newSet.add(clientId);
+      }
+      return newSet;
+    });
+  };
 
   const handleViewDetails = (client: Client) => {
     setSelectedClient(client);
@@ -251,185 +266,222 @@ const ClientsList = () => {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {clients.map((client) => (
-          <Card key={client.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    {client.avatar ? (
-                      <AvatarImage src={client.avatar} alt={client.name} />
-                    ) : (
-                      <AvatarFallback className="bg-blue-100 text-blue-600">
-                        {client.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{client.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{client.industry}</p>
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleViewDetails(client)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Visualizar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleViewDetails(client)}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Badge className={getStatusColor(client.status)}>
-                  {getStatusLabel(client.status)}
-                </Badge>
-                <div className="text-right">
-                  <div className="text-xs text-muted-foreground">{client.dealsCount} deals</div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="w-4 h-4" />
-                  <span className="truncate">{client.contactEmail}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Phone className="w-4 h-4" />
-                  <span>{client.contactPhone}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Globe className="w-4 h-4" />
-                  <span className="truncate">{client.website}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  <span>{client.address}</span>
-                </div>
-              </div>
-
-              {/* Seção de Usuários */}
-              <div className="pt-3 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1 text-sm font-medium">
-                    <Users className="w-4 h-4" />
-                    Usuários ({client.users.length})
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsAddingUser(client.id)}
-                    className="h-6 w-6 p-0"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </Button>
-                </div>
-
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {client.users.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
-                      <div className="flex-1">
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-muted-foreground">{user.email}</div>
-                        <div className="text-muted-foreground">Senha: {user.password}</div>
+        {clients.map((client) => {
+          const isExpanded = expandedClients.has(client.id);
+          
+          return (
+            <Collapsible
+              key={client.id}
+              open={isExpanded}
+              onOpenChange={() => toggleClientExpansion(client.id)}
+            >
+              <Card className="hover:shadow-lg transition-shadow">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="pb-3 cursor-pointer">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          {client.avatar ? (
+                            <AvatarImage src={client.avatar} alt={client.name} />
+                          ) : (
+                            <AvatarFallback className="bg-blue-100 text-blue-600">
+                              {client.name.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{client.name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{client.industry}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
-                          {user.role}
-                        </Badge>
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => handleViewDetails(client)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Visualizar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewDetails(client)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                    
+                    {/* Informações sempre visíveis */}
+                    <div className="flex justify-between items-center mt-2">
+                      <Badge className={getStatusColor(client.status)}>
+                        {getStatusLabel(client.status)}
+                      </Badge>
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">{client.dealsCount} deals</div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent>
+                  <CardContent className="space-y-4 pt-0">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="w-4 h-4" />
+                        <span className="truncate">{client.contactEmail}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="w-4 h-4" />
+                        <span>{client.contactPhone}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Globe className="w-4 h-4" />
+                        <span className="truncate">{client.website}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        <span>{client.address}</span>
+                      </div>
+                    </div>
+
+                    {/* Seção de Usuários */}
+                    <div className="pt-3 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <Users className="w-4 h-4" />
+                          Usuários ({client.users.length})
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteUser(client.id, user.id)}
-                          className="h-5 w-5 p-0 text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsAddingUser(client.id);
+                          }}
+                          className="h-6 w-6 p-0"
                         >
-                          <X className="w-3 h-3" />
+                          <Plus className="w-3 h-3" />
                         </Button>
                       </div>
-                    </div>
-                  ))}
 
-                  {isAddingUser === client.id && (
-                    <div className="p-2 border border-gray-200 rounded space-y-2">
-                      <Input
-                        placeholder="Nome"
-                        value={newUser.name || ""}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                        className="text-xs h-7"
-                      />
-                      <Input
-                        placeholder="Email"
-                        value={newUser.email || ""}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                        className="text-xs h-7"
-                      />
-                      <Input
-                        placeholder="Senha"
-                        value={newUser.password || ""}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                        className="text-xs h-7"
-                      />
-                      <div className="flex items-center gap-1">
-                        <select
-                          value={newUser.role || "user"}
-                          onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "user" }))}
-                          className="text-xs border rounded px-2 py-1 flex-1"
-                        >
-                          <option value="user">Usuário</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                        <Button
-                          size="sm"
-                          onClick={() => handleAddUser(client.id)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Check className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setIsAddingUser(null)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {client.users.map((user) => (
+                          <div key={user.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
+                            <div className="flex-1">
+                              <div className="font-medium">{user.name}</div>
+                              <div className="text-muted-foreground">{user.email}</div>
+                              <div className="text-muted-foreground">Senha: {user.password}</div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                                {user.role}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteUser(client.id, user.id);
+                                }}
+                                className="h-5 w-5 p-0 text-red-600"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {isAddingUser === client.id && (
+                          <div className="p-2 border border-gray-200 rounded space-y-2">
+                            <Input
+                              placeholder="Nome"
+                              value={newUser.name || ""}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                              className="text-xs h-7"
+                            />
+                            <Input
+                              placeholder="Email"
+                              value={newUser.email || ""}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                              className="text-xs h-7"
+                            />
+                            <Input
+                              placeholder="Senha"
+                              value={newUser.password || ""}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                              className="text-xs h-7"
+                            />
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={newUser.role || "user"}
+                                onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "user" }))}
+                                className="text-xs border rounded px-2 py-1 flex-1"
+                              >
+                                <option value="user">Usuário</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddUser(client.id);
+                                }}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsAddingUser(null);
+                                }}
+                                className="h-6 w-6 p-0"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="pt-3 border-t border-slate-200">
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => handleViewDetails(client)}
-                >
-                  <Building className="w-4 h-4 mr-2" />
-                  Ver Detalhes
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                    
+                    <div className="pt-3 border-t border-slate-200">
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(client);
+                        }}
+                      >
+                        <Building className="w-4 h-4 mr-2" />
+                        Ver Detalhes
+                      </Button>
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          );
+        })}
       </div>
 
       {/* Edit Dialog */}
