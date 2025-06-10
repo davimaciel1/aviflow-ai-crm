@@ -1204,4 +1204,4 @@ const KanbanBoard = () => {
 
 export default KanbanBoard;
 
-</initial_code>
+</edits_to_apply>
