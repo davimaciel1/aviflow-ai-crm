@@ -14,18 +14,21 @@ import {
   Building,
   Plus
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Deal {
   id: string;
   title: string;
   value: string;
   client: string;
+  clientId: string;
   contact: string;
   email: string;
   phone: string;
   dueDate: string;
   priority: "low" | "medium" | "high";
   tasks: { total: number; completed: number };
+  confidentialInfo?: string;
 }
 
 interface Column {
@@ -36,6 +39,9 @@ interface Column {
 }
 
 const KanbanBoard = () => {
+  const { user } = useAuth();
+  const isClientView = user?.role === 'client';
+
   const [columns, setColumns] = useState<Column[]>([
     {
       id: "prospecting",
@@ -47,24 +53,28 @@ const KanbanBoard = () => {
           title: "Sistema ERP - TechCorp",
           value: "R$ 150.000",
           client: "TechCorp Ltd",
+          clientId: "techcorp",
           contact: "João Silva",
           email: "joao@techcorp.com",
           phone: "(11) 99999-9999",
           dueDate: "2024-06-15",
           priority: "high",
-          tasks: { total: 5, completed: 2 }
+          tasks: { total: 5, completed: 2 },
+          confidentialInfo: "Margem: 45% - Concorrente: Oracle"
         },
         {
           id: "2",
           title: "Consultoria Digital - StartupXYZ",
           value: "R$ 75.000",
           client: "StartupXYZ",
+          clientId: "startupxyz",
           contact: "Maria Santos",
           email: "maria@startupxyz.com",
           phone: "(11) 88888-8888",
           dueDate: "2024-06-20",
           priority: "medium",
-          tasks: { total: 3, completed: 1 }
+          tasks: { total: 3, completed: 1 },
+          confidentialInfo: "Budget máximo: R$ 100k"
         }
       ]
     },
@@ -78,12 +88,14 @@ const KanbanBoard = () => {
           title: "Website Institucional - ABC Corp",
           value: "R$ 45.000",
           client: "ABC Corporation",
+          clientId: "abccorp",
           contact: "Pedro Oliveira",
           email: "pedro@abccorp.com",
           phone: "(11) 77777-7777",
           dueDate: "2024-06-18",
           priority: "medium",
-          tasks: { total: 4, completed: 3 }
+          tasks: { total: 4, completed: 3 },
+          confidentialInfo: "Decisor: CEO Pedro"
         }
       ]
     },
@@ -97,6 +109,7 @@ const KanbanBoard = () => {
           title: "App Mobile - RetailPlus",
           value: "R$ 200.000",
           client: "RetailPlus",
+          clientId: "retailplus",
           contact: "Ana Costa",
           email: "ana@retailplus.com",
           phone: "(11) 66666-6666",
@@ -116,6 +129,7 @@ const KanbanBoard = () => {
           title: "Dashboard Analytics - DataCorp",
           value: "R$ 120.000",
           client: "DataCorp",
+          clientId: "datacorp",
           contact: "Carlos Lima",
           email: "carlos@datacorp.com",
           phone: "(11) 55555-5555",
@@ -135,6 +149,7 @@ const KanbanBoard = () => {
           title: "E-commerce - ShopMais",
           value: "R$ 180.000",
           client: "ShopMais",
+          clientId: "shopmais",
           contact: "Lucas Ferreira",
           email: "lucas@shopmais.com",
           phone: "(11) 44444-4444",
@@ -146,7 +161,24 @@ const KanbanBoard = () => {
     }
   ]);
 
+  // Filter deals for client view
+  const getFilteredColumns = () => {
+    if (!isClientView || !user?.clientId) {
+      return columns;
+    }
+
+    return columns.map(column => ({
+      ...column,
+      deals: column.deals.filter(deal => deal.clientId === user.clientId)
+    }));
+  };
+
   const onDragEnd = (result: DropResult) => {
+    // Disable drag & drop for client view
+    if (isClientView) {
+      return;
+    }
+
     const { destination, source, draggableId } = result;
 
     if (!destination) {
@@ -221,22 +253,24 @@ const KanbanBoard = () => {
   };
 
   const DealCard = ({ deal, index }: { deal: Deal; index: number }) => (
-    <Draggable draggableId={deal.id} index={index}>
+    <Draggable draggableId={deal.id} index={index} isDragDisabled={isClientView}>
       {(provided, snapshot) => (
         <Card 
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`mb-4 hover:shadow-md transition-shadow cursor-pointer ${
+          className={`mb-4 hover:shadow-md transition-shadow ${!isClientView ? 'cursor-pointer' : ''} ${
             snapshot.isDragging ? 'shadow-lg transform rotate-2' : ''
           }`}
         >
           <CardHeader className="pb-3">
             <div className="flex justify-between items-start">
               <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
+              {!isClientView && (
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-green-600" />
@@ -269,6 +303,13 @@ const KanbanBoard = () => {
               <span>{deal.dueDate}</span>
             </div>
             
+            {/* Show confidential info only to admins */}
+            {!isClientView && deal.confidentialInfo && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                <strong>Confidencial:</strong> {deal.confidentialInfo}
+              </div>
+            )}
+            
             <div className="flex items-center justify-between">
               <Badge variant="secondary" className={getPriorityColor(deal.priority)}>
                 {deal.priority}
@@ -297,10 +338,12 @@ const KanbanBoard = () => {
     </Draggable>
   );
 
+  const filteredColumns = getFilteredColumns();
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex gap-6 overflow-x-auto pb-6 min-h-[600px]">
-        {columns.map((column) => (
+        {filteredColumns.map((column) => (
           <div key={column.id} className="flex-shrink-0 w-80">
             <div className={`${column.color} rounded-lg p-4 min-h-full`}>
               <div className="flex justify-between items-center mb-4">
@@ -311,9 +354,11 @@ const KanbanBoard = () => {
                   <Badge variant="secondary">
                     {column.deals.length}
                   </Badge>
-                  <Button variant="ghost" size="sm">
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                  {!isClientView && (
+                    <Button variant="ghost" size="sm">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
               
