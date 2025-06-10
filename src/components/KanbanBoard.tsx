@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +19,9 @@ import {
   ArrowRight,
   FileText,
   Video,
-  Camera
+  Camera,
+  GripVertical,
+  Shield
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -477,12 +478,7 @@ const KanbanBoard = () => {
   };
 
   const onDragEnd = (result: DropResult) => {
-    // Disable drag & drop for client view
-    if (isClientView) {
-      return;
-    }
-
-    const { destination, source, draggableId } = result;
+    const { destination, source, draggableId, type } = result;
 
     // Se não há destino (dropped outside), retorna
     if (!destination) {
@@ -497,6 +493,32 @@ const KanbanBoard = () => {
       return;
     }
 
+    // Se está reordenando stages
+    if (type === "stage") {
+      if (isClientView) return; // Clientes não podem reordenar stages
+      
+      setPipelines(prev => prev.map(pipeline => {
+        if (pipeline.id === selectedPipeline) {
+          const newColumns = Array.from(pipeline.columns);
+          const [reorderedColumn] = newColumns.splice(source.index, 1);
+          newColumns.splice(destination.index, 0, reorderedColumn);
+          
+          return {
+            ...pipeline,
+            columns: newColumns
+          };
+        }
+        return pipeline;
+      }));
+      return;
+    }
+
+    // Disable card drag & drop for client view
+    if (isClientView) {
+      return;
+    }
+
+    // Reordenação de cards (código existente)
     setPipelines(prev => prev.map(pipeline => {
       if (pipeline.id === selectedPipeline) {
         // Encontrar as colunas de origem e destino
@@ -572,9 +594,10 @@ const KanbanBoard = () => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`mb-3 hover:shadow-md transition-shadow cursor-pointer ${
-            snapshot.isDragging ? 'shadow-lg transform rotate-1' : ''
-          }`}
+          className={`mb-4 hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 ${
+            deal.priority === 'high' ? 'border-l-red-500' : 
+            deal.priority === 'medium' ? 'border-l-yellow-500' : 'border-l-green-500'
+          } ${snapshot.isDragging ? 'shadow-2xl transform rotate-2 scale-105' : ''}`}
         >
           {editingCard === deal.id ? (
             <div className="p-4 space-y-4 max-w-2xl">
@@ -726,17 +749,24 @@ const KanbanBoard = () => {
             </div>
           ) : (
             <>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-sm font-medium leading-tight flex-1">
-                    {deal.title}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 ml-2">
-                    <Avatar className="w-6 h-6">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-sm font-semibold leading-tight text-slate-900 mb-2">
+                      {deal.title}
+                    </CardTitle>
+                    {deal.description && (
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {deal.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
                       {deal.avatar ? (
                         <AvatarImage src={deal.avatar} alt={deal.companyName} />
                       ) : null}
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
                         {getInitials(deal.companyName)}
                       </AvatarFallback>
                     </Avatar>
@@ -744,46 +774,47 @@ const KanbanBoard = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditCard(deal)}
-                      className="h-6 w-6 p-0"
+                      className="h-8 w-8 p-0 hover:bg-slate-100"
                     >
-                      <Edit3 className="w-3 h-3" />
+                      <Edit3 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                {deal.description && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {deal.description}
-                  </p>
-                )}
               </CardHeader>
-              <CardContent className="space-y-3">
+              
+              <CardContent className="space-y-3 pt-0">
                 <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs`}>
+                  <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs font-medium px-2 py-1`}>
                     {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
                   </Badge>
                 </div>
                 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Building className="w-3 h-3" />
-                  <span className="font-medium">{deal.companyName}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <User className="w-3 h-3" />
-                  <span>{deal.contact}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <Building className="w-4 h-4 text-slate-400" />
+                    <span className="font-medium truncate">{deal.companyName}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <User className="w-4 h-4 text-slate-400" />
+                    <span className="truncate">{deal.contact}</span>
+                  </div>
                 </div>
                 
                 {/* Show confidential info only to admins */}
                 {!isClientView && deal.confidentialInfo && (
-                  <div className="p-2 bg-red-50 border border-red-200 rounded">
-                    <div className="flex items-center justify-between mb-1">
-                      <strong className="text-xs text-red-800">Confidencial:</strong>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1">
+                        <Shield className="w-3 h-3 text-red-600" />
+                        <strong className="text-xs text-red-800 font-semibold">Confidencial</strong>
+                      </div>
                       {editingConfidential !== deal.id && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
-                          className="h-5 w-5 p-0"
+                          className="h-6 w-6 p-0 hover:bg-red-100"
                         >
                           <Edit3 className="w-3 h-3" />
                         </Button>
@@ -796,13 +827,13 @@ const KanbanBoard = () => {
                           value={tempConfidentialValue}
                           onChange={(e) => setTempConfidentialValue(e.target.value)}
                           placeholder="Informações confidenciais..."
-                          className="text-xs min-h-[50px] resize-none"
+                          className="text-xs min-h-[60px] resize-none border-red-200"
                         />
                         <div className="flex gap-1">
                           <Button
                             size="sm"
                             onClick={() => handleSaveConfidential(deal.id)}
-                            className="h-5 px-2 text-xs"
+                            className="h-6 px-2 text-xs"
                           >
                             <Check className="w-3 h-3" />
                           </Button>
@@ -810,25 +841,25 @@ const KanbanBoard = () => {
                             size="sm"
                             variant="outline"
                             onClick={handleCancelConfidentialEdit}
-                            className="h-5 px-2 text-xs"
+                            className="h-6 px-2 text-xs"
                           >
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
+                      <div className="text-xs text-red-800 leading-relaxed">{deal.confidentialInfo}</div>
                     )}
                   </div>
                 )}
                 
                 {deal.notes && (
-                  <div className="p-2 bg-blue-50 border border-blue-200 rounded">
-                    <div className="flex items-center gap-1 mb-1">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
                       <FileText className="w-3 h-3 text-blue-600" />
-                      <strong className="text-xs text-blue-800">Anotações:</strong>
+                      <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
                     </div>
-                    <div className="text-xs text-blue-800">{deal.notes}</div>
+                    <div className="text-xs text-blue-800 leading-relaxed whitespace-pre-wrap">{deal.notes}</div>
                   </div>
                 )}
               </CardContent>
@@ -866,137 +897,171 @@ const KanbanBoard = () => {
       )}
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-6 min-h-[600px]">
-          {filteredColumns.map((column) => (
-            <div key={column.id} className="flex-shrink-0 w-72">
-              <div className={`${column.color} rounded-lg p-3 min-h-full`}>
-                <div className="flex justify-between items-center mb-3">
-                  {editingStage === column.id ? (
-                    <div className="flex items-center gap-2 flex-1">
+        <Droppable droppableId="stages" direction="horizontal" type="stage">
+          {(provided) => (
+            <div 
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className="flex gap-6 overflow-x-auto pb-6 min-h-[700px]"
+            >
+              {filteredColumns.map((column, index) => (
+                <Draggable 
+                  key={column.id} 
+                  draggableId={column.id} 
+                  index={index}
+                  isDragDisabled={isClientView}
+                >
+                  {(provided, snapshot) => (
+                    <div 
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`flex-shrink-0 w-80 ${snapshot.isDragging ? 'transform rotate-1' : ''}`}
+                    >
+                      <div className={`${column.color} rounded-xl p-4 min-h-full shadow-sm border border-slate-200`}>
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex items-center gap-2 flex-1">
+                            {!isClientView && (
+                              <div {...provided.dragHandleProps} className="cursor-grab hover:cursor-grabbing">
+                                <GripVertical className="w-4 h-4 text-slate-400" />
+                              </div>
+                            )}
+                            
+                            {editingStage === column.id ? (
+                              <div className="flex items-center gap-2 flex-1">
+                                <Input
+                                  value={tempStageTitle}
+                                  onChange={(e) => setTempStageTitle(e.target.value)}
+                                  className="text-sm h-8"
+                                  autoFocus
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSaveStage(column.id)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <Check className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleCancelStageEdit}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <h3 className="font-semibold text-slate-900 text-sm flex-1">
+                                  {column.title}
+                                </h3>
+                                {!isClientView && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditStage(column.id, column.title)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteStage(column.id)}
+                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs font-medium">
+                              {column.deals.length}
+                            </Badge>
+                            {!isClientView && (
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <Droppable droppableId={column.id}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`space-y-3 min-h-[400px] ${
+                                snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg p-2' : ''
+                              }`}
+                            >
+                              {column.deals.map((deal, index) => (
+                                <DealCard key={deal.id} deal={deal} index={index} />
+                              ))}
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+              
+              {/* Add Stage Button */}
+              {!isClientView && (
+                <div className="flex-shrink-0 w-80">
+                  {addingStage ? (
+                    <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px]">
                       <Input
-                        value={tempStageTitle}
-                        onChange={(e) => setTempStageTitle(e.target.value)}
-                        className="text-sm h-8"
+                        value={newStageTitle}
+                        onChange={(e) => setNewStageTitle(e.target.value)}
+                        placeholder="Nome do novo stage..."
+                        className="text-sm mb-3"
                         autoFocus
                       />
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveStage(column.id)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Check className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCancelStageEdit}
-                        className="h-6 w-6 p-0"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleAddStage}>
+                          <Check className="w-4 h-4 mr-1" />
+                          Adicionar
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setAddingStage(false);
+                          setNewStageTitle("");
+                        }}>
+                          <X className="w-4 h-4 mr-1" />
+                          Cancelar
+                        </Button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 flex-1">
-                      <h3 className="font-semibold text-slate-900 text-sm">
-                        {column.title}
-                      </h3>
-                      {!isClientView && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditStage(column.id, column.title)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteStage(column.id)}
-                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {column.deals.length}
-                    </Badge>
-                    {!isClientView && (
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                        <Plus className="w-3 h-3" />
+                    <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px] flex items-center justify-center">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setAddingStage(true)}
+                        className="text-slate-600 hover:text-slate-900"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Adicionar Stage
                       </Button>
-                    )}
-                  </div>
-                </div>
-                
-                <Droppable droppableId={column.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`space-y-2 min-h-[200px] ${
-                        snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg' : ''
-                      }`}
-                    >
-                      {column.deals.map((deal, index) => (
-                        <DealCard key={deal.id} deal={deal} index={index} />
-                      ))}
-                      {provided.placeholder}
                     </div>
                   )}
-                </Droppable>
-              </div>
-            </div>
-          ))}
-          
-          {/* Add Stage Button */}
-          {!isClientView && (
-            <div className="flex-shrink-0 w-72">
-              {addingStage ? (
-                <div className="bg-slate-50 rounded-lg p-3 border-2 border-dashed border-slate-300">
-                  <Input
-                    value={newStageTitle}
-                    onChange={(e) => setNewStageTitle(e.target.value)}
-                    placeholder="Nome do novo stage..."
-                    className="text-sm mb-2"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleAddStage}>
-                      <Check className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => {
-                      setAddingStage(false);
-                      setNewStageTitle("");
-                    }}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-slate-50 rounded-lg p-3 border-2 border-dashed border-slate-300 min-h-[100px] flex items-center justify-center">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setAddingStage(true)}
-                    className="text-slate-600 hover:text-slate-900"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Adicionar Stage
-                  </Button>
                 </div>
               )}
             </div>
           )}
-        </div>
+        </Droppable>
       </DragDropContext>
     </div>
   );
 };
 
 export default KanbanBoard;
+
+</edits_to_apply>
