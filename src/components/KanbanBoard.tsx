@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -682,33 +681,55 @@ const KanbanBoard = () => {
             snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
           }`}
         >
-          <CardContent className="p-4 space-y-3">
-            {/* Title with edit button */}
+          <CardContent className="p-3 space-y-3">
+            {/* Header with title and edit */}
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold text-sm leading-tight text-slate-900 flex-1">
+              <h3 className="font-medium text-sm leading-tight text-slate-900 flex-1">
                 {deal.title}
               </h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleEditCard(deal)}
-                className="h-6 w-6 p-0 hover:bg-slate-100 opacity-60 hover:opacity-100"
+                className="h-5 w-5 p-0 hover:bg-slate-100 opacity-60 hover:opacity-100"
               >
                 <Edit className="w-3 h-3" />
               </Button>
             </div>
 
-            {/* Description */}
-            {deal.description && (
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {deal.description}
-              </p>
-            )}
+            {/* Priority badge */}
+            <div className="flex items-center justify-between">
+              <Badge variant="secondary" className={`text-xs ${getPriorityColor(deal.priority)}`}>
+                {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
+              </Badge>
+              
+              <Avatar className="w-6 h-6 border border-slate-200">
+                {deal.avatar ? (
+                  <AvatarImage src={deal.avatar} alt={deal.companyName} />
+                ) : null}
+                <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                  {getInitials(deal.companyName)}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+
+            {/* Company info */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <Building className="w-3 h-3 text-slate-400" />
+                <span className="font-medium">{deal.companyName}</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <User className="w-3 h-3 text-slate-400" />
+                <span>{deal.contact}</span>
+              </div>
+            </div>
 
             {/* Confidential section - only for admins */}
             {!isClientView && deal.confidentialInfo && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <div className="flex items-center justify-between mb-2">
+              <div className="bg-red-50 border border-red-200 rounded-md p-2">
+                <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1">
                     <Shield className="w-3 h-3 text-red-600" />
                     <span className="text-xs font-medium text-red-800">Confidencial</span>
@@ -718,9 +739,9 @@ const KanbanBoard = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
-                      className="h-5 w-5 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
+                      className="h-4 w-4 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
                     >
-                      <Edit className="w-3 h-3" />
+                      <Edit className="w-2.5 h-2.5" />
                     </Button>
                   )}
                 </div>
@@ -731,13 +752,13 @@ const KanbanBoard = () => {
                       value={tempConfidentialValue}
                       onChange={(e) => setTempConfidentialValue(e.target.value)}
                       placeholder="Informações confidenciais..."
-                      className="text-xs min-h-[50px] resize-none border-red-200"
+                      className="text-xs min-h-[40px] resize-none border-red-200"
                     />
                     <div className="flex gap-1">
                       <Button
                         size="sm"
                         onClick={() => handleSaveConfidential(deal.id)}
-                        className="h-6 px-2 text-xs"
+                        className="h-5 px-2 text-xs"
                       >
                         <Check className="w-3 h-3" />
                       </Button>
@@ -745,7 +766,7 @@ const KanbanBoard = () => {
                         size="sm"
                         variant="outline"
                         onClick={handleCancelConfidentialEdit}
-                        className="h-6 px-2 text-xs"
+                        className="h-5 px-2 text-xs"
                       >
                         <X className="w-3 h-3" />
                       </Button>
@@ -757,44 +778,13 @@ const KanbanBoard = () => {
               </div>
             )}
 
-            {/* Notes section */}
+            {/* Notes indicator */}
             {deal.notes && deal.notes.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <FileText className="w-3 h-3 text-blue-600" />
-                    <span className="text-xs font-medium text-blue-800">Anotações & Insights</span>
-                  </div>
-                  <Badge variant="secondary" className="text-xs h-5">
-                    {deal.notes.length}
-                  </Badge>
-                </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-3 h-3 text-blue-600" />
+                <span className="text-xs text-blue-600 font-medium">{deal.notes.length} anotação(ões)</span>
               </div>
             )}
-
-            {/* Company and contact info */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Building className="w-3 h-3 text-slate-400" />
-                <span className="font-medium">{deal.companyName}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <User className="w-3 h-3 text-slate-400" />
-                  <span>{deal.contact}</span>
-                </div>
-                
-                <Avatar className="w-6 h-6 border border-slate-200">
-                  {deal.avatar ? (
-                    <AvatarImage src={deal.avatar} alt={deal.companyName} />
-                  ) : null}
-                  <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                    {getInitials(deal.companyName)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -909,7 +899,7 @@ const KanbanBoard = () => {
                                     <DropdownMenuItem 
                                       onClick={() => handleEditStage(column.id, column.title)}
                                     >
-                                      <Edit3 className="w-3 h-3 mr-2" />
+                                      <Edit className="w-3 h-3 mr-2" />
                                       Editar
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
