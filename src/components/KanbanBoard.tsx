@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -781,15 +780,21 @@ const KanbanBoard = () => {
               </div>
             )}
             
-            {/* Show notes */}
+            {/* Show notes preview - only latest note */}
             {deal.notes && deal.notes.length > 0 && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-3 h-3 text-blue-600" />
                   <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
+                  {deal.notes.length > 1 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {deal.notes.length}
+                    </Badge>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  {deal.notes.slice(-2).map((note) => (
+                  {/* Show only the latest note as preview */}
+                  {deal.notes.slice(-1).map((note) => (
                     <div key={note.id} className="text-xs">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`font-medium ${note.authorRole === 'admin' ? 'text-purple-600' : 'text-green-600'}`}>
@@ -799,33 +804,19 @@ const KanbanBoard = () => {
                           {new Date(note.timestamp).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
-                      <div className="text-blue-800 leading-relaxed mb-2">{note.content}</div>
+                      <div className="text-blue-800 leading-relaxed mb-2 line-clamp-2">
+                        {note.content.length > 80 ? `${note.content.substring(0, 80)}...` : note.content}
+                      </div>
                       {note.attachments && note.attachments.length > 0 && (
-                        <div className="space-y-1">
-                          {note.attachments.map((attachment, idx) => (
-                            <div key={idx}>
-                              {attachment.type === 'photo' ? (
-                                <img 
-                                  src={attachment.url} 
-                                  alt={attachment.name}
-                                  className="max-w-full h-20 object-cover rounded border"
-                                />
-                              ) : (
-                                <video 
-                                  src={attachment.url} 
-                                  controls
-                                  className="max-w-full h-20 rounded border"
-                                />
-                              )}
-                            </div>
-                          ))}
+                        <div className="text-xs text-blue-600 font-medium">
+                          📎 {note.attachments.length} anexo(s)
                         </div>
                       )}
                     </div>
                   ))}
-                  {deal.notes.length > 2 && (
+                  {deal.notes.length > 1 && (
                     <div className="text-xs text-blue-600 font-medium">
-                      +{deal.notes.length - 2} anotações adicionais
+                      Clique para ver todas as {deal.notes.length} anotações
                     </div>
                   )}
                 </div>
@@ -1032,7 +1023,7 @@ const KanbanBoard = () => {
 
       {/* Edit Card Sheet */}
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-        <SheetContent side="right" className="w-[800px] sm:w-[900px]">
+        <SheetContent side="right" className="w-[1000px] sm:w-[1100px] max-w-[90vw]">
           <SheetHeader>
             <SheetTitle>Editar Card</SheetTitle>
             <SheetDescription>
@@ -1041,7 +1032,7 @@ const KanbanBoard = () => {
           </SheetHeader>
           
           <div className="py-6 space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Título</label>
@@ -1143,7 +1134,7 @@ const KanbanBoard = () => {
             </div>
             
             {/* Notes Section */}
-            <div className="space-y-4 border-t pt-4">
+            <div className="space-y-4 border-t pt-6">
               <div>
                 <label className="text-sm font-medium mb-2 block flex items-center gap-2">
                   <FileText className="w-4 h-4" />
@@ -1152,9 +1143,9 @@ const KanbanBoard = () => {
                 
                 {/* Existing Notes */}
                 {tempCardData.notes && tempCardData.notes.length > 0 && (
-                  <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
+                  <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
                     {tempCardData.notes.map((note) => (
-                      <div key={note.id} className="p-3 bg-slate-50 rounded-lg border">
+                      <div key={note.id} className="p-4 bg-slate-50 rounded-lg border">
                         <div className="flex items-center gap-2 mb-2">
                           <span className={`text-sm font-medium ${note.authorRole === 'admin' ? 'text-purple-600' : 'text-green-600'}`}>
                             {note.author} ({note.authorRole === 'admin' ? 'Admin' : 'Cliente'})
