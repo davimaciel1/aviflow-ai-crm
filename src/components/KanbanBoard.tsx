@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  Calendar, 
   User,
   Plus,
   Edit3,
@@ -26,7 +26,6 @@ interface Deal {
   clientId: string;
   companyName: string;
   contact: string;
-  dueDate: string;
   priority: "low" | "medium" | "high";
   description?: string;
   confidentialInfo?: string;
@@ -84,7 +83,6 @@ const KanbanBoard = () => {
               clientId: "techcorp",
               companyName: "TechCorp Ltd",
               contact: "João Silva",
-              dueDate: "15/06/2024",
               priority: "high",
               description: "Implementação de sistema ERP completo",
               confidentialInfo: "Margem: 45% - Concorrente: Oracle",
@@ -97,7 +95,6 @@ const KanbanBoard = () => {
               clientId: "startupxyz",
               companyName: "StartupXYZ",
               contact: "Maria Santos",
-              dueDate: "20/06/2024",
               priority: "medium",
               description: "Consultoria para transformação digital",
               confidentialInfo: "Budget máximo: R$ 100k"
@@ -116,7 +113,6 @@ const KanbanBoard = () => {
               clientId: "abccorp",
               companyName: "ABC Corporation",
               contact: "Pedro Oliveira",
-              dueDate: "18/06/2024",
               priority: "medium",
               description: "Desenvolvimento de website corporativo",
               confidentialInfo: "Decisor: CEO Pedro"
@@ -135,7 +131,6 @@ const KanbanBoard = () => {
               clientId: "retailplus",
               companyName: "RetailPlus",
               contact: "Ana Costa",
-              dueDate: "12/06/2024",
               priority: "high",
               description: "Aplicativo mobile para e-commerce"
             }
@@ -153,7 +148,6 @@ const KanbanBoard = () => {
               clientId: "datacorp",
               companyName: "DataCorp",
               contact: "Carlos Lima",
-              dueDate: "14/06/2024",
               priority: "high",
               description: "Dashboard para análise de dados"
             }
@@ -171,7 +165,6 @@ const KanbanBoard = () => {
               clientId: "shopmais",
               companyName: "ShopMais",
               contact: "Lucas Ferreira",
-              dueDate: "10/06/2024",
               priority: "medium",
               description: "Plataforma de e-commerce completa"
             }
@@ -195,7 +188,6 @@ const KanbanBoard = () => {
               clientId: "techcorp",
               companyName: "TechCorp Ltd",
               contact: "João Silva",
-              dueDate: "Hoje",
               priority: "high",
               description: "Correção de bug crítico no sistema"
             }
@@ -301,7 +293,6 @@ const KanbanBoard = () => {
       title: deal.title,
       description: deal.description || "",
       contact: deal.contact,
-      dueDate: deal.dueDate,
       priority: deal.priority,
       companyName: deal.companyName,
       clientId: deal.clientId
@@ -370,7 +361,75 @@ const KanbanBoard = () => {
     if (isClientView) {
       return;
     }
-    // Drag logic would be implemented here
+
+    const { destination, source, draggableId } = result;
+
+    // Se não há destino (dropped outside), retorna
+    if (!destination) {
+      return;
+    }
+
+    // Se dropped na mesma posição, retorna
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    setPipelines(prev => prev.map(pipeline => {
+      if (pipeline.id === selectedPipeline) {
+        // Encontrar as colunas de origem e destino
+        const sourceColumn = pipeline.columns.find(col => col.id === source.droppableId);
+        const destColumn = pipeline.columns.find(col => col.id === destination.droppableId);
+        
+        if (!sourceColumn || !destColumn) return pipeline;
+
+        // Encontrar o deal sendo movido
+        const deal = sourceColumn.deals.find(d => d.id === draggableId);
+        if (!deal) return pipeline;
+
+        // Se movendo dentro da mesma coluna
+        if (source.droppableId === destination.droppableId) {
+          const newDeals = Array.from(sourceColumn.deals);
+          newDeals.splice(source.index, 1);
+          newDeals.splice(destination.index, 0, deal);
+
+          return {
+            ...pipeline,
+            columns: pipeline.columns.map(col =>
+              col.id === source.droppableId
+                ? { ...col, deals: newDeals }
+                : col
+            )
+          };
+        }
+
+        // Movendo entre colunas diferentes
+        const sourceDeals = Array.from(sourceColumn.deals);
+        const destDeals = Array.from(destColumn.deals);
+
+        // Remover da coluna de origem
+        sourceDeals.splice(source.index, 1);
+        
+        // Adicionar à coluna de destino
+        destDeals.splice(destination.index, 0, deal);
+
+        return {
+          ...pipeline,
+          columns: pipeline.columns.map(col => {
+            if (col.id === source.droppableId) {
+              return { ...col, deals: sourceDeals };
+            }
+            if (col.id === destination.droppableId) {
+              return { ...col, deals: destDeals };
+            }
+            return col;
+          })
+        };
+      }
+      return pipeline;
+    }));
   };
 
   const getPriorityColor = (priority: string) => {
@@ -437,12 +496,6 @@ const KanbanBoard = () => {
                 value={tempCardData.contact || ""}
                 onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
                 placeholder="Contato"
-                className="text-sm"
-              />
-              <Input
-                value={tempCardData.dueDate || ""}
-                onChange={(e) => setTempCardData(prev => ({ ...prev, dueDate: e.target.value }))}
-                placeholder="Data"
                 className="text-sm"
               />
               <Select
@@ -516,11 +569,6 @@ const KanbanBoard = () => {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <User className="w-3 h-3" />
                   <span>{deal.contact}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="w-3 h-3" />
-                  <span>{deal.dueDate}</span>
                 </div>
                 
                 {/* Show confidential info only to admins */}
