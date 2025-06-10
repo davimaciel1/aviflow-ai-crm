@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   User,
   Plus,
@@ -24,7 +25,9 @@ import {
   Camera,
   GripVertical,
   Shield,
-  MoreHorizontal
+  MoreHorizontal,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -82,6 +85,7 @@ const KanbanBoard = () => {
   const [newStageTitle, setNewStageTitle] = useState<string>("");
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState<boolean>(false);
   const [newNote, setNewNote] = useState<string>("");
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   // Lista de empresas disponíveis
   const companies = [
@@ -309,6 +313,19 @@ const KanbanBoard = () => {
       ...column,
       deals: column.deals.filter(deal => deal.clientId === user.clientId)
     }));
+  };
+
+  // Toggle card expansion
+  const toggleCardExpansion = (dealId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dealId)) {
+        newSet.delete(dealId);
+      } else {
+        newSet.add(dealId);
+      }
+      return newSet;
+    });
   };
 
   // Stage management functions
@@ -670,142 +687,159 @@ const KanbanBoard = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const DealCard = ({ deal, index }: { deal: Deal; index: number }) => (
-    <Draggable draggableId={deal.id} index={index} isDragDisabled={isClientView}>
-      {(provided, snapshot) => (
-        <Card 
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 ${
-            snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
-          }`}
-          onDoubleClick={() => handleEditCard(deal)}
-        >
-          <CardContent className="p-3">
-            {/* Header with title and edit button */}
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="font-medium text-sm leading-tight text-slate-900 flex-1">
-                {deal.title}
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditCard(deal);
-                }}
-                className="h-5 w-5 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Edit className="w-3 h-3" />
-              </Button>
-            </div>
-
-            {/* Description */}
-            {deal.description && (
-              <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-                {deal.description}
-              </p>
-            )}
-
-            {/* Confidential section - only for admins */}
-            {!isClientView && deal.confidentialInfo && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-2 mb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <Shield className="w-3 h-3 text-red-600" />
-                    <span className="text-xs font-medium text-red-800">Confidencial</span>
-                  </div>
-                  {editingConfidential !== deal.id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditConfidential(deal.id, deal.confidentialInfo || "");
-                      }}
-                      className="h-4 w-4 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
-                    >
-                      <Edit className="w-2.5 h-2.5" />
-                    </Button>
-                  )}
-                </div>
-                
-                {editingConfidential === deal.id ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={tempConfidentialValue}
-                      onChange={(e) => setTempConfidentialValue(e.target.value)}
-                      placeholder="Informações confidenciais..."
-                      className="text-xs min-h-[40px] resize-none border-red-200"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <div className="flex gap-1">
+  const DealCard = ({ deal, index }: { deal: Deal; index: number }) => {
+    const isExpanded = expandedCards.has(deal.id);
+    
+    return (
+      <Draggable draggableId={deal.id} index={index} isDragDisabled={isClientView}>
+        {(provided, snapshot) => (
+          <Card 
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 ${
+              snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
+            }`}
+          >
+            <Collapsible open={isExpanded} onOpenChange={() => toggleCardExpansion(deal.id)}>
+              <CardContent className="p-3">
+                {/* Header with title and expand/collapse button */}
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-start justify-between gap-2 mb-2 w-full">
+                    <h3 className="font-medium text-sm leading-tight text-slate-900 flex-1 text-left">
+                      {deal.title}
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      )}
                       <Button
+                        variant="ghost"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSaveConfidential(deal.id);
+                          handleEditCard(deal);
                         }}
-                        className="h-5 px-2 text-xs"
+                        className="h-5 w-5 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <Check className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCancelConfidentialEdit();
-                        }}
-                        className="h-5 px-2 text-xs"
-                      >
-                        <X className="w-3 h-3" />
+                        <Edit className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
-                )}
-              </div>
-            )}
+                </CollapsibleTrigger>
 
-            {/* Notes indicator */}
-            {deal.notes && deal.notes.length > 0 && (
-              <div className="flex items-center gap-2 mb-3">
-                <FileText className="w-3 h-3 text-blue-600" />
-                <span className="text-xs text-blue-600 font-medium">{deal.notes.length} Anotações & Insights</span>
-              </div>
-            )}
-
-            {/* Company and contact info at bottom */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Building className="w-3 h-3 text-slate-400" />
-                <span className="font-medium">{deal.companyName}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <User className="w-3 h-3 text-slate-400" />
-                  <span>{deal.contact}</span>
+                {/* Always visible company and contact info */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <Building className="w-3 h-3 text-slate-400" />
+                    <span className="font-medium">{deal.companyName}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <User className="w-3 h-3 text-slate-400" />
+                      <span>{deal.contact}</span>
+                    </div>
+                    
+                    <Avatar className="w-6 h-6 border border-slate-200">
+                      {deal.avatar ? (
+                        <AvatarImage src={deal.avatar} alt={deal.companyName} />
+                      ) : null}
+                      <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                        {getInitials(deal.companyName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                 </div>
-                
-                <Avatar className="w-6 h-6 border border-slate-200">
-                  {deal.avatar ? (
-                    <AvatarImage src={deal.avatar} alt={deal.companyName} />
-                  ) : null}
-                  <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                    {getInitials(deal.companyName)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </Draggable>
-  );
+
+                {/* Collapsible content */}
+                <CollapsibleContent className="space-y-3 mt-3">
+                  {/* Description */}
+                  {deal.description && (
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {deal.description}
+                    </p>
+                  )}
+
+                  {/* Confidential section - only for admins */}
+                  {!isClientView && deal.confidentialInfo && (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1">
+                          <Shield className="w-3 h-3 text-red-600" />
+                          <span className="text-xs font-medium text-red-800">Confidencial</span>
+                        </div>
+                        {editingConfidential !== deal.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditConfidential(deal.id, deal.confidentialInfo || "");
+                            }}
+                            className="h-4 w-4 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
+                          >
+                            <Edit className="w-2.5 h-2.5" />
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {editingConfidential === deal.id ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={tempConfidentialValue}
+                            onChange={(e) => setTempConfidentialValue(e.target.value)}
+                            placeholder="Informações confidenciais..."
+                            className="text-xs min-h-[40px] resize-none border-red-200"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSaveConfidential(deal.id);
+                              }}
+                              className="h-5 px-2 text-xs"
+                            >
+                              <Check className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelConfidentialEdit();
+                              }}
+                              className="h-5 px-2 text-xs"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notes indicator */}
+                  {deal.notes && deal.notes.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3 h-3 text-blue-600" />
+                      <span className="text-xs text-blue-600 font-medium">{deal.notes.length} Anotações & Insights</span>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </CardContent>
+            </Collapsible>
+          </Card>
+        )}
+      </Draggable>
+    );
+  };
 
   const filteredColumns = getFilteredColumns();
 
