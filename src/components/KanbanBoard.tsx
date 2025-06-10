@@ -701,38 +701,9 @@ const KanbanBoard = () => {
               </Button>
             </div>
 
-            {/* Company and contact info */}
-            <div className="space-y-2 mb-3">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Building className="w-3 h-3 text-slate-400" />
-                <span className="font-medium">{deal.companyName}</span>
-              </div>
-              
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <User className="w-3 h-3 text-slate-400" />
-                <span>{deal.contact}</span>
-              </div>
-            </div>
-
-            {/* Bottom row with priority badge and avatar */}
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary" className={`text-xs ${getPriorityColor(deal.priority)}`}>
-                {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-              </Badge>
-              
-              <Avatar className="w-6 h-6 border border-slate-200">
-                {deal.avatar ? (
-                  <AvatarImage src={deal.avatar} alt={deal.companyName} />
-                ) : null}
-                <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                  {getInitials(deal.companyName)}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-
             {/* Confidential section - only for admins */}
             {!isClientView && deal.confidentialInfo && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-2 mt-3">
+              <div className="bg-red-50 border border-red-200 rounded-md p-2 mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1">
                     <Shield className="w-3 h-3 text-red-600" />
@@ -794,11 +765,35 @@ const KanbanBoard = () => {
 
             {/* Notes indicator */}
             {deal.notes && deal.notes.length > 0 && (
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2 mb-3">
                 <FileText className="w-3 h-3 text-blue-600" />
                 <span className="text-xs text-blue-600 font-medium">{deal.notes.length} anotação(ões)</span>
               </div>
             )}
+
+            {/* Company and contact info - moved to bottom */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <Building className="w-3 h-3 text-slate-400" />
+                <span className="font-medium">{deal.companyName}</span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <User className="w-3 h-3 text-slate-400" />
+                  <span>{deal.contact}</span>
+                </div>
+                
+                <Avatar className="w-6 h-6 border border-slate-200">
+                  {deal.avatar ? (
+                    <AvatarImage src={deal.avatar} alt={deal.companyName} />
+                  ) : null}
+                  <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                    {getInitials(deal.companyName)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
