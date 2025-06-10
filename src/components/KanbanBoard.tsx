@@ -26,6 +26,19 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface Note {
+  id: string;
+  content: string;
+  author: string;
+  authorRole: 'admin' | 'client';
+  timestamp: string;
+  attachments?: {
+    type: 'photo' | 'video';
+    url: string;
+    name: string;
+  }[];
+}
+
 interface Deal {
   id: string;
   title: string;
@@ -36,7 +49,7 @@ interface Deal {
   priority: "low" | "medium" | "high";
   description?: string;
   confidentialInfo: string;
-  notes?: string;
+  notes: Note[];
   avatar?: string;
 }
 
@@ -66,6 +79,7 @@ const KanbanBoard = () => {
   const [addingStage, setAddingStage] = useState<boolean>(false);
   const [newStageTitle, setNewStageTitle] = useState<string>("");
   const [isEditSheetOpen, setIsEditSheetOpen] = useState<boolean>(false);
+  const [newNote, setNewNote] = useState<string>("");
 
   // Lista de empresas disponíveis
   const companies = [
@@ -97,7 +111,15 @@ const KanbanBoard = () => {
               priority: "high",
               description: "Implementação de sistema ERP completo",
               confidentialInfo: "Margem: 45% - Concorrente: Oracle",
-              notes: "",
+              notes: [
+                {
+                  id: "note1",
+                  content: "Cliente muito interessado no projeto. Reunião agendada para próxima semana.",
+                  author: "Admin User",
+                  authorRole: "admin",
+                  timestamp: "2024-06-10T10:30:00Z"
+                }
+              ],
               avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
             },
             {
@@ -110,7 +132,8 @@ const KanbanBoard = () => {
               priority: "medium",
               description: "Consultoria para transformação digital",
               confidentialInfo: "Budget máximo: R$ 100k",
-              notes: ""
+              notes: [],
+              avatar: undefined
             }
           ]
         },
@@ -129,7 +152,8 @@ const KanbanBoard = () => {
               priority: "medium",
               description: "Desenvolvimento de website corporativo",
               confidentialInfo: "Decisor: CEO Pedro",
-              notes: ""
+              notes: [],
+              avatar: undefined
             }
           ]
         },
@@ -148,7 +172,8 @@ const KanbanBoard = () => {
               priority: "high",
               description: "Aplicativo mobile para e-commerce",
               confidentialInfo: "Reunião de fechamento agendada para sexta",
-              notes: ""
+              notes: [],
+              avatar: undefined
             }
           ]
         },
@@ -167,7 +192,8 @@ const KanbanBoard = () => {
               priority: "high",
               description: "Dashboard para análise de dados",
               confidentialInfo: "Aguardando aprovação do board",
-              notes: ""
+              notes: [],
+              avatar: undefined
             }
           ]
         },
@@ -186,7 +212,8 @@ const KanbanBoard = () => {
               priority: "medium",
               description: "Plataforma de e-commerce completa",
               confidentialInfo: "Projeto finalizado com sucesso",
-              notes: ""
+              notes: [],
+              avatar: undefined
             }
           ]
         }
@@ -211,7 +238,8 @@ const KanbanBoard = () => {
               priority: "high",
               description: "Correção de bug crítico no sistema",
               confidentialInfo: "Bug afeta módulo financeiro",
-              notes: ""
+              notes: [],
+              avatar: undefined
             }
           ]
         },
@@ -371,11 +399,10 @@ const KanbanBoard = () => {
       title: deal.title,
       description: deal.description || "",
       contact: deal.contact,
-      priority: deal.priority,
       companyName: deal.companyName,
       clientId: deal.clientId,
       confidentialInfo: deal.confidentialInfo || "",
-      notes: deal.notes || ""
+      notes: deal.notes || []
     });
     setIsEditSheetOpen(true);
   };
@@ -404,10 +431,57 @@ const KanbanBoard = () => {
     setIsEditSheetOpen(false);
   };
 
-  const handleCancelCardEdit = () => {
-    setEditingCard(null);
-    setTempCardData({});
-    setIsEditSheetOpen(false);
+  const handleAddNote = () => {
+    if (!newNote.trim() || !editingCard || !user) return;
+
+    const note: Note = {
+      id: `note_${Date.now()}`,
+      content: newNote,
+      author: user.name,
+      authorRole: user.role,
+      timestamp: new Date().toISOString()
+    };
+
+    setTempCardData(prev => ({
+      ...prev,
+      notes: [...(prev.notes || []), note]
+    }));
+
+    setNewNote("");
+  };
+
+  const handleFileUpload = (type: 'photo' | 'video') => {
+    // Simular upload de arquivo
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = type === 'photo' ? 'image/*' : 'video/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // Aqui você adicionaria a lógica real de upload
+        console.log(`Uploading ${type}:`, file.name);
+        
+        // Simular adição do anexo à última nota
+        const mockUrl = URL.createObjectURL(file);
+        setTempCardData(prev => {
+          const notes = [...(prev.notes || [])];
+          if (notes.length > 0) {
+            const lastNote = { ...notes[notes.length - 1] };
+            lastNote.attachments = [
+              ...(lastNote.attachments || []),
+              {
+                type,
+                url: mockUrl,
+                name: file.name
+              }
+            ];
+            notes[notes.length - 1] = lastNote;
+          }
+          return { ...prev, notes };
+        });
+      }
+    };
+    input.click();
   };
 
   const handleEditConfidential = (dealId: string, currentValue: string = "") => {
@@ -702,13 +776,33 @@ const KanbanBoard = () => {
               </div>
             )}
             
-            {deal.notes && (
+            {/* Show notes */}
+            {deal.notes && deal.notes.length > 0 && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-3 h-3 text-blue-600" />
                   <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
                 </div>
-                <div className="text-xs text-blue-800 leading-relaxed whitespace-pre-wrap">{deal.notes}</div>
+                <div className="space-y-2">
+                  {deal.notes.slice(-2).map((note) => (
+                    <div key={note.id} className="text-xs">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`font-medium ${note.authorRole === 'admin' ? 'text-purple-600' : 'text-green-600'}`}>
+                          {note.author} ({note.authorRole === 'admin' ? 'Admin' : 'Cliente'})
+                        </span>
+                        <span className="text-slate-500">
+                          {new Date(note.timestamp).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                      <div className="text-blue-800 leading-relaxed">{note.content}</div>
+                    </div>
+                  ))}
+                  {deal.notes.length > 2 && (
+                    <div className="text-xs text-blue-600 font-medium">
+                      +{deal.notes.length - 2} anotações adicionais
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
@@ -916,7 +1010,7 @@ const KanbanBoard = () => {
             </SheetDescription>
           </SheetHeader>
           
-          <div className="py-6 space-y-6">
+          <div className="py-6 space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
                 <div>
@@ -964,23 +1058,30 @@ const KanbanBoard = () => {
                     className="w-full"
                   />
                 </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Prioridade</label>
-                  <Select
-                    value={tempCardData.priority || "medium"}
-                    onValueChange={(value) => setTempCardData(prev => ({ ...prev, priority: value as Deal['priority'] }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Baixa</SelectItem>
-                      <SelectItem value="medium">Média</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+                {/* Move to Pipeline Dropdown */}
+                {!isClientView && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Mover para pipeline:</label>
+                    <Select
+                      onValueChange={(value) => editingCard && handleMoveToPipeline(editingCard, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecionar pipeline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pipelines.filter(p => p.id !== selectedPipeline).map(pipeline => (
+                          <SelectItem key={pipeline.id} value={pipeline.id}>
+                            <div className="flex items-center gap-2">
+                              <ArrowRight className="w-4 h-4" />
+                              {pipeline.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-4">
@@ -1011,50 +1112,66 @@ const KanbanBoard = () => {
               </div>
             </div>
             
-            <div className="space-y-4">
+            {/* Notes Section */}
+            <div className="space-y-4 border-t pt-4">
               <div>
                 <label className="text-sm font-medium mb-2 block flex items-center gap-2">
                   <FileText className="w-4 h-4" />
-                  Anotações, Insights e Anexos
+                  Anotações & Insights
                 </label>
-                <Textarea
-                  value={tempCardData.notes || ""}
-                  onChange={(e) => setTempCardData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Use este espaço para adicionar anotações, insights, links para vídeos, fotos ou outros materiais relevantes ao projeto..."
-                  className="w-full min-h-[150px]"
-                />
-                <div className="flex gap-2 mt-3">
-                  <Button variant="outline" size="sm">
-                    <Camera className="w-4 h-4 mr-2" />
-                    Adicionar Foto
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Video className="w-4 h-4 mr-2" />
-                    Adicionar Vídeo
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Pipeline move option */}
-              {!isClientView && (
-                <div className="border-t pt-4">
-                  <label className="text-sm font-medium mb-2 block">Mover para pipeline:</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {pipelines.filter(p => p.id !== selectedPipeline).map(pipeline => (
-                      <Button
-                        key={pipeline.id}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => editingCard && handleMoveToPipeline(editingCard, pipeline.id)}
-                        className="text-sm"
-                      >
-                        <ArrowRight className="w-4 h-4 mr-2" />
-                        {pipeline.name}
-                      </Button>
+                
+                {/* Existing Notes */}
+                {tempCardData.notes && tempCardData.notes.length > 0 && (
+                  <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
+                    {tempCardData.notes.map((note) => (
+                      <div key={note.id} className="p-3 bg-slate-50 rounded-lg border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-sm font-medium ${note.authorRole === 'admin' ? 'text-purple-600' : 'text-green-600'}`}>
+                            {note.author} ({note.authorRole === 'admin' ? 'Admin' : 'Cliente'})
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(note.timestamp).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="text-sm text-slate-700 whitespace-pre-wrap">{note.content}</div>
+                        {note.attachments && note.attachments.length > 0 && (
+                          <div className="mt-2 flex gap-2">
+                            {note.attachments.map((attachment, idx) => (
+                              <div key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                {attachment.type === 'photo' ? '📷' : '🎥'} {attachment.name}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
+                )}
+
+                {/* Add New Note */}
+                <div className="space-y-3">
+                  <Textarea
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Adicionar nova anotação..."
+                    className="w-full min-h-[100px]"
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddNote} size="sm" disabled={!newNote.trim()}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Anotação
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleFileUpload('photo')}>
+                      <Camera className="w-4 h-4 mr-2" />
+                      Foto
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleFileUpload('video')}>
+                      <Video className="w-4 h-4 mr-2" />
+                      Vídeo
+                    </Button>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
             
             <div className="flex gap-3 pt-4 border-t">
@@ -1062,7 +1179,11 @@ const KanbanBoard = () => {
                 <Check className="w-4 h-4 mr-2" />
                 Salvar Alterações
               </Button>
-              <Button variant="outline" onClick={handleCancelCardEdit} className="flex-1">
+              <Button variant="outline" onClick={() => {
+                setEditingCard(null);
+                setTempCardData({});
+                setIsEditSheetOpen(false);
+              }} className="flex-1">
                 <X className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
