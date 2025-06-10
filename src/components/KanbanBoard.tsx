@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { 
   User,
   Plus,
-  Edit3,
+  Edit,
   Check,
   X,
   Settings,
@@ -677,73 +678,49 @@ const KanbanBoard = () => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`mb-4 hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 ${
-            deal.priority === 'high' ? 'border-l-red-500' : 
-            deal.priority === 'medium' ? 'border-l-yellow-500' : 'border-l-green-500'
-          } ${snapshot.isDragging ? 'shadow-2xl transform rotate-2 scale-105' : ''}`}
+          className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 ${
+            snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
+          }`}
         >
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-sm font-semibold leading-tight text-slate-900 mb-2">
-                  {deal.title}
-                </CardTitle>
-                {deal.description && (
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {deal.description}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
-                  {deal.avatar ? (
-                    <AvatarImage src={deal.avatar} alt={deal.companyName} />
-                  ) : null}
-                  <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                    {getInitials(deal.companyName)}
-                  </AvatarFallback>
-                </Avatar>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEditCard(deal)}
-                  className="h-8 w-8 p-0 hover:bg-slate-100"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </Button>
-              </div>
+          <CardContent className="p-4 space-y-3">
+            {/* Title with edit button */}
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-semibold text-sm leading-tight text-slate-900 flex-1">
+                {deal.title}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditCard(deal)}
+                className="h-6 w-6 p-0 hover:bg-slate-100 opacity-60 hover:opacity-100"
+              >
+                <Edit className="w-3 h-3" />
+              </Button>
             </div>
-          </CardHeader>
-          
-          <CardContent className="space-y-3 pt-0">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Building className="w-4 h-4 text-slate-400" />
-                <span className="font-medium truncate">{deal.companyName}</span>
-              </div>
-              
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <User className="w-4 h-4 text-slate-400" />
-                <span className="truncate">{deal.contact}</span>
-              </div>
-            </div>
-            
-            {/* Show confidential info only to admins */}
+
+            {/* Description */}
+            {deal.description && (
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {deal.description}
+              </p>
+            )}
+
+            {/* Confidential section - only for admins */}
             {!isClientView && deal.confidentialInfo && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1">
                     <Shield className="w-3 h-3 text-red-600" />
-                    <strong className="text-xs text-red-800 font-semibold">Confidencial</strong>
+                    <span className="text-xs font-medium text-red-800">Confidencial</span>
                   </div>
                   {editingConfidential !== deal.id && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
-                      className="h-6 w-6 p-0 hover:bg-red-100"
+                      className="h-5 w-5 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
                     >
-                      <Edit3 className="w-3 h-3" />
+                      <Edit className="w-3 h-3" />
                     </Button>
                   )}
                 </div>
@@ -754,7 +731,7 @@ const KanbanBoard = () => {
                       value={tempConfidentialValue}
                       onChange={(e) => setTempConfidentialValue(e.target.value)}
                       placeholder="Informações confidenciais..."
-                      className="text-xs min-h-[60px] resize-none border-red-200"
+                      className="text-xs min-h-[50px] resize-none border-red-200"
                     />
                     <div className="flex gap-1">
                       <Button
@@ -775,26 +752,49 @@ const KanbanBoard = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-red-800 leading-relaxed">{deal.confidentialInfo}</div>
+                  <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
                 )}
               </div>
             )}
-            
-            {/* Show notes preview - only header with count */}
+
+            {/* Notes section */}
             {deal.notes && deal.notes.length > 0 && (
-              <div 
-                className="p-3 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
-                onDoubleClick={() => handleEditCard(deal)}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="w-3 h-3 text-blue-600" />
-                  <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
-                  <Badge variant="secondary" className="text-xs">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <FileText className="w-3 h-3 text-blue-600" />
+                    <span className="text-xs font-medium text-blue-800">Anotações & Insights</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs h-5">
                     {deal.notes.length}
                   </Badge>
                 </div>
               </div>
             )}
+
+            {/* Company and contact info */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <Building className="w-3 h-3 text-slate-400" />
+                <span className="font-medium">{deal.companyName}</span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <User className="w-3 h-3 text-slate-400" />
+                  <span>{deal.contact}</span>
+                </div>
+                
+                <Avatar className="w-6 h-6 border border-slate-200">
+                  {deal.avatar ? (
+                    <AvatarImage src={deal.avatar} alt={deal.companyName} />
+                  ) : null}
+                  <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                    {getInitials(deal.companyName)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
