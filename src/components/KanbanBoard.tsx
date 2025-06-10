@@ -780,48 +780,18 @@ const KanbanBoard = () => {
               </div>
             )}
             
-            {/* Show notes preview - only latest note */}
+            {/* Show notes preview - only header with count */}
             {deal.notes && deal.notes.length > 0 && (
               <div 
                 className="p-3 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                 onDoubleClick={() => handleEditCard(deal)}
               >
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2">
                   <FileText className="w-3 h-3 text-blue-600" />
                   <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
-                  {deal.notes.length > 1 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {deal.notes.length}
-                    </Badge>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {/* Show only the latest note as preview */}
-                  {deal.notes.slice(-1).map((note) => (
-                    <div key={note.id} className="text-xs">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`font-medium ${note.authorRole === 'admin' ? 'text-purple-600' : 'text-green-600'}`}>
-                          {note.author} ({note.authorRole === 'admin' ? 'Admin' : 'Cliente'})
-                        </span>
-                        <span className="text-slate-500">
-                          {new Date(note.timestamp).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                      <div className="text-blue-800 leading-relaxed mb-2 line-clamp-2">
-                        {note.content.length > 80 ? `${note.content.substring(0, 80)}...` : note.content}
-                      </div>
-                      {note.attachments && note.attachments.length > 0 && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          📎 {note.attachments.length} anexo(s)
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {deal.notes.length > 1 && (
-                    <div className="text-xs text-blue-600 font-medium">
-                      Clique duplo para ver todas as {deal.notes.length} anotações
-                    </div>
-                  )}
+                  <Badge variant="secondary" className="text-xs">
+                    {deal.notes.length}
+                  </Badge>
                 </div>
               </div>
             )}
@@ -1026,7 +996,7 @@ const KanbanBoard = () => {
 
       {/* Edit Card Sheet */}
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-        <SheetContent side="right" className="w-[1200px] sm:w-[1300px] max-w-[95vw]">
+        <SheetContent side="right" className="w-[1400px] sm:w-[1500px] max-w-[98vw]">
           <SheetHeader>
             <SheetTitle>Editar Card</SheetTitle>
             <SheetDescription>
