@@ -18,7 +18,8 @@ import {
   Bell,
   Search,
   Plus,
-  LogOut
+  LogOut,
+  User
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import KanbanBoard from "@/components/KanbanBoard";
@@ -26,6 +27,7 @@ import ClientsList from "@/components/ClientsList";
 import TasksList from "@/components/TasksList";
 import DocumentsList from "@/components/DocumentsList";
 import AIInsights from "@/components/AIInsights";
+import CompanyUserManager from "@/components/CompanyUserManager";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -46,7 +48,7 @@ const Index = () => {
     if (isClientView) {
       return ["dashboard", "kanban", "tasks", "documents"];
     }
-    return ["dashboard", "kanban", "clients", "tasks", "documents", "settings"];
+    return ["dashboard", "kanban", "clients", "users", "tasks", "documents", "settings"];
   };
 
   const availableTabs = getAvailableTabs();
@@ -100,7 +102,7 @@ const Index = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full ${isClientView ? 'grid-cols-4' : 'grid-cols-6'} lg:w-fit`}>
+          <TabsList className={`grid w-full ${isClientView ? 'grid-cols-4' : 'grid-cols-7'} lg:w-fit`}>
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Dashboard
@@ -113,6 +115,12 @@ const Index = () => {
               <TabsTrigger value="clients" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Clientes
+              </TabsTrigger>
+            )}
+            {!isClientView && (
+              <TabsTrigger value="users" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Usuários
               </TabsTrigger>
             )}
             <TabsTrigger value="tasks" className="flex items-center gap-2">
@@ -318,6 +326,13 @@ const Index = () => {
             <KanbanBoard />
           </TabsContent>
 
+          {/* Users Tab */}
+          {!isClientView && (
+            <TabsContent value="users" className="space-y-6">
+              <CompanyUserManager />
+            </TabsContent>
+          )}
+
           {/* Clients Tab */}
           {!isClientView && (
             <TabsContent value="clients" className="space-y-6">
@@ -407,3 +422,5 @@ const Index = () => {
 };
 
 export default Index;
+
+}

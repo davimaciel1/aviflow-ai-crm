@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +14,8 @@ import {
   Edit3,
   Check,
   X,
-  Settings
+  Settings,
+  Building
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,6 +24,7 @@ interface Deal {
   title: string;
   client: string;
   clientId: string;
+  companyName: string;
   contact: string;
   dueDate: string;
   priority: "low" | "medium" | "high";
@@ -56,6 +57,16 @@ const KanbanBoard = () => {
   const [tempCardData, setTempCardData] = useState<Partial<Deal>>({});
   const [selectedPipeline, setSelectedPipeline] = useState<string>("sales");
 
+  // Lista de empresas disponíveis
+  const companies = [
+    { id: "techcorp", name: "TechCorp Ltd" },
+    { id: "startupxyz", name: "StartupXYZ" },
+    { id: "abccorp", name: "ABC Corporation" },
+    { id: "retailplus", name: "RetailPlus" },
+    { id: "datacorp", name: "DataCorp" },
+    { id: "shopmais", name: "ShopMais" }
+  ];
+
   const [pipelines, setPipelines] = useState<Pipeline[]>([
     {
       id: "sales",
@@ -71,6 +82,7 @@ const KanbanBoard = () => {
               title: "Sistema ERP - TechCorp",
               client: "TechCorp Ltd",
               clientId: "techcorp",
+              companyName: "TechCorp Ltd",
               contact: "João Silva",
               dueDate: "15/06/2024",
               priority: "high",
@@ -83,6 +95,7 @@ const KanbanBoard = () => {
               title: "Consultoria Digital - StartupXYZ",
               client: "StartupXYZ",
               clientId: "startupxyz",
+              companyName: "StartupXYZ",
               contact: "Maria Santos",
               dueDate: "20/06/2024",
               priority: "medium",
@@ -101,6 +114,7 @@ const KanbanBoard = () => {
               title: "Website Institucional - ABC Corp",
               client: "ABC Corporation",
               clientId: "abccorp",
+              companyName: "ABC Corporation",
               contact: "Pedro Oliveira",
               dueDate: "18/06/2024",
               priority: "medium",
@@ -119,6 +133,7 @@ const KanbanBoard = () => {
               title: "App Mobile - RetailPlus",
               client: "RetailPlus",
               clientId: "retailplus",
+              companyName: "RetailPlus",
               contact: "Ana Costa",
               dueDate: "12/06/2024",
               priority: "high",
@@ -136,6 +151,7 @@ const KanbanBoard = () => {
               title: "Dashboard Analytics - DataCorp",
               client: "DataCorp",
               clientId: "datacorp",
+              companyName: "DataCorp",
               contact: "Carlos Lima",
               dueDate: "14/06/2024",
               priority: "high",
@@ -153,6 +169,7 @@ const KanbanBoard = () => {
               title: "E-commerce - ShopMais",
               client: "ShopMais",
               clientId: "shopmais",
+              companyName: "ShopMais",
               contact: "Lucas Ferreira",
               dueDate: "10/06/2024",
               priority: "medium",
@@ -176,6 +193,7 @@ const KanbanBoard = () => {
               title: "Bug Sistema ERP",
               client: "TechCorp Ltd",
               clientId: "techcorp",
+              companyName: "TechCorp Ltd",
               contact: "João Silva",
               dueDate: "Hoje",
               priority: "high",
@@ -284,7 +302,9 @@ const KanbanBoard = () => {
       description: deal.description || "",
       contact: deal.contact,
       dueDate: deal.dueDate,
-      priority: deal.priority
+      priority: deal.priority,
+      companyName: deal.companyName,
+      clientId: deal.clientId
     });
   };
 
@@ -296,7 +316,11 @@ const KanbanBoard = () => {
           columns: pipeline.columns.map(col => ({
             ...col,
             deals: col.deals.map(deal => 
-              deal.id === dealId ? { ...deal, ...tempCardData } : deal
+              deal.id === dealId ? { 
+                ...deal, 
+                ...tempCardData,
+                client: tempCardData.companyName || deal.client
+              } : deal
             )
           }))
         };
@@ -387,6 +411,28 @@ const KanbanBoard = () => {
                 placeholder="Descrição"
                 className="text-sm min-h-[60px]"
               />
+              <Select
+                value={tempCardData.clientId || ""}
+                onValueChange={(value) => {
+                  const selectedCompany = companies.find(c => c.id === value);
+                  setTempCardData(prev => ({ 
+                    ...prev, 
+                    clientId: value,
+                    companyName: selectedCompany?.name || ""
+                  }));
+                }}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Selecionar empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 value={tempCardData.contact || ""}
                 onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
@@ -431,10 +477,10 @@ const KanbanBoard = () => {
                   <div className="flex items-center gap-2 ml-2">
                     <Avatar className="w-6 h-6">
                       {deal.avatar ? (
-                        <AvatarImage src={deal.avatar} alt={deal.client} />
+                        <AvatarImage src={deal.avatar} alt={deal.companyName} />
                       ) : null}
                       <AvatarFallback className="text-xs">
-                        {getInitials(deal.client)}
+                        {getInitials(deal.companyName)}
                       </AvatarFallback>
                     </Avatar>
                     {!isClientView && (
@@ -460,6 +506,11 @@ const KanbanBoard = () => {
                   <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs`}>
                     {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
                   </Badge>
+                </div>
+                
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Building className="w-3 h-3" />
+                  <span className="font-medium">{deal.companyName}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -640,3 +691,5 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
+
+}
