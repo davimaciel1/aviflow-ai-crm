@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { 
   User,
@@ -80,7 +80,7 @@ const KanbanBoard = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("sales");
   const [addingStage, setAddingStage] = useState<boolean>(false);
   const [newStageTitle, setNewStageTitle] = useState<string>("");
-  const [isEditSheetOpen, setIsEditSheetOpen] = useState<boolean>(false);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState<boolean>(false);
   const [newNote, setNewNote] = useState<string>("");
 
   // Lista de empresas disponíveis
@@ -406,7 +406,7 @@ const KanbanBoard = () => {
       confidentialInfo: deal.confidentialInfo || "",
       notes: deal.notes || []
     });
-    setIsEditSheetOpen(true);
+    setIsEditDrawerOpen(true);
   };
 
   const handleSaveCard = (dealId: string) => {
@@ -430,7 +430,7 @@ const KanbanBoard = () => {
     }));
     setEditingCard(null);
     setTempCardData({});
-    setIsEditSheetOpen(false);
+    setIsEditDrawerOpen(false);
   };
 
   const handleAddNote = () => {
@@ -994,17 +994,17 @@ const KanbanBoard = () => {
         </Droppable>
       </DragDropContext>
 
-      {/* Edit Card Sheet */}
-      <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-        <SheetContent side="right" className="w-[1400px] sm:w-[1500px] max-w-[98vw]">
-          <SheetHeader>
-            <SheetTitle>Editar Card</SheetTitle>
-            <SheetDescription>
+      {/* Edit Card Drawer */}
+      <Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>Editar Card</DrawerTitle>
+            <DrawerDescription>
               Edite as informações do card abaixo
-            </SheetDescription>
-          </SheetHeader>
+            </DrawerDescription>
+          </DrawerHeader>
           
-          <div className="py-6 space-y-6 max-h-[calc(100vh-120px)] overflow-y-auto">
+          <div className="px-6 pb-6 space-y-6 max-h-[calc(85vh-120px)] overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
@@ -1189,17 +1189,19 @@ const KanbanBoard = () => {
               <Button variant="outline" onClick={() => {
                 setEditingCard(null);
                 setTempCardData({});
-                setIsEditSheetOpen(false);
+                setIsEditDrawerOpen(false);
               }} className="flex-1">
                 <X className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
 
 export default KanbanBoard;
+
+</initial_code>
