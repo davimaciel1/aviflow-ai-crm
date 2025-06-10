@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,10 @@ import {
   Settings,
   Building,
   Trash2,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Video,
+  Camera
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -29,7 +33,8 @@ interface Deal {
   contact: string;
   priority: "low" | "medium" | "high";
   description?: string;
-  confidentialInfo?: string;
+  confidentialInfo: string;
+  notes?: string;
   avatar?: string;
 }
 
@@ -89,6 +94,7 @@ const KanbanBoard = () => {
               priority: "high",
               description: "Implementação de sistema ERP completo",
               confidentialInfo: "Margem: 45% - Concorrente: Oracle",
+              notes: "",
               avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
             },
             {
@@ -100,7 +106,8 @@ const KanbanBoard = () => {
               contact: "Maria Santos",
               priority: "medium",
               description: "Consultoria para transformação digital",
-              confidentialInfo: "Budget máximo: R$ 100k"
+              confidentialInfo: "Budget máximo: R$ 100k",
+              notes: ""
             }
           ]
         },
@@ -118,7 +125,8 @@ const KanbanBoard = () => {
               contact: "Pedro Oliveira",
               priority: "medium",
               description: "Desenvolvimento de website corporativo",
-              confidentialInfo: "Decisor: CEO Pedro"
+              confidentialInfo: "Decisor: CEO Pedro",
+              notes: ""
             }
           ]
         },
@@ -135,7 +143,9 @@ const KanbanBoard = () => {
               companyName: "RetailPlus",
               contact: "Ana Costa",
               priority: "high",
-              description: "Aplicativo mobile para e-commerce"
+              description: "Aplicativo mobile para e-commerce",
+              confidentialInfo: "Reunião de fechamento agendada para sexta",
+              notes: ""
             }
           ]
         },
@@ -152,7 +162,9 @@ const KanbanBoard = () => {
               companyName: "DataCorp",
               contact: "Carlos Lima",
               priority: "high",
-              description: "Dashboard para análise de dados"
+              description: "Dashboard para análise de dados",
+              confidentialInfo: "Aguardando aprovação do board",
+              notes: ""
             }
           ]
         },
@@ -169,7 +181,9 @@ const KanbanBoard = () => {
               companyName: "ShopMais",
               contact: "Lucas Ferreira",
               priority: "medium",
-              description: "Plataforma de e-commerce completa"
+              description: "Plataforma de e-commerce completa",
+              confidentialInfo: "Projeto finalizado com sucesso",
+              notes: ""
             }
           ]
         }
@@ -192,7 +206,9 @@ const KanbanBoard = () => {
               companyName: "TechCorp Ltd",
               contact: "João Silva",
               priority: "high",
-              description: "Correção de bug crítico no sistema"
+              description: "Correção de bug crítico no sistema",
+              confidentialInfo: "Bug afeta módulo financeiro",
+              notes: ""
             }
           ]
         },
@@ -354,7 +370,9 @@ const KanbanBoard = () => {
       contact: deal.contact,
       priority: deal.priority,
       companyName: deal.companyName,
-      clientId: deal.clientId
+      clientId: deal.clientId,
+      confidentialInfo: deal.confidentialInfo || "",
+      notes: deal.notes || ""
     });
   };
 
@@ -559,60 +577,120 @@ const KanbanBoard = () => {
           }`}
         >
           {editingCard === deal.id ? (
-            <div className="p-4 space-y-3">
-              <Input
-                value={tempCardData.title || ""}
-                onChange={(e) => setTempCardData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Título"
-                className="text-sm"
-              />
-              <Textarea
-                value={tempCardData.description || ""}
-                onChange={(e) => setTempCardData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Descrição"
-                className="text-sm min-h-[60px]"
-              />
-              <Select
-                value={tempCardData.clientId || ""}
-                onValueChange={(value) => {
-                  const selectedCompany = companies.find(c => c.id === value);
-                  setTempCardData(prev => ({ 
-                    ...prev, 
-                    clientId: value,
-                    companyName: selectedCompany?.name || ""
-                  }));
-                }}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue placeholder="Selecionar empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                value={tempCardData.contact || ""}
-                onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
-                placeholder="Contato"
-                className="text-sm"
-              />
-              <Select
-                value={tempCardData.priority || "medium"}
-                onValueChange={(value) => setTempCardData(prev => ({ ...prev, priority: value as Deal['priority'] }))}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Baixa</SelectItem>
-                  <SelectItem value="medium">Média</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="p-4 space-y-4 max-w-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Título</label>
+                    <Input
+                      value={tempCardData.title || ""}
+                      onChange={(e) => setTempCardData(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Título"
+                      className="text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Empresa</label>
+                    <Select
+                      value={tempCardData.clientId || ""}
+                      onValueChange={(value) => {
+                        const selectedCompany = companies.find(c => c.id === value);
+                        setTempCardData(prev => ({ 
+                          ...prev, 
+                          clientId: value,
+                          companyName: selectedCompany?.name || ""
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Selecionar empresa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Contato</label>
+                    <Input
+                      value={tempCardData.contact || ""}
+                      onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
+                      placeholder="Contato"
+                      className="text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Prioridade</label>
+                    <Select
+                      value={tempCardData.priority || "medium"}
+                      onValueChange={(value) => setTempCardData(prev => ({ ...prev, priority: value as Deal['priority'] }))}
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Baixa</SelectItem>
+                        <SelectItem value="medium">Média</SelectItem>
+                        <SelectItem value="high">Alta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Descrição</label>
+                    <Textarea
+                      value={tempCardData.description || ""}
+                      onChange={(e) => setTempCardData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Descrição do projeto"
+                      className="text-sm min-h-[80px]"
+                    />
+                  </div>
+                  
+                  {!isClientView && (
+                    <div>
+                      <label className="text-sm font-medium mb-1 block text-red-600">Informações Confidenciais</label>
+                      <Textarea
+                        value={tempCardData.confidentialInfo || ""}
+                        onChange={(e) => setTempCardData(prev => ({ ...prev, confidentialInfo: e.target.value }))}
+                        placeholder="Informações internas e confidenciais"
+                        className="text-sm min-h-[80px] border-red-200"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Anotações, Insights e Anexos
+                </label>
+                <Textarea
+                  value={tempCardData.notes || ""}
+                  onChange={(e) => setTempCardData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Use este espaço para adicionar anotações, insights, links para vídeos, fotos ou outros materiais relevantes ao projeto..."
+                  className="text-sm min-h-[120px]"
+                />
+                <div className="flex gap-2 mt-2">
+                  <Button variant="outline" size="sm" className="text-xs">
+                    <Camera className="w-3 h-3 mr-1" />
+                    Adicionar Foto
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs">
+                    <Video className="w-3 h-3 mr-1" />
+                    Adicionar Vídeo
+                  </Button>
+                </div>
+              </div>
               
               {/* Pipeline move option */}
               {!isClientView && (
@@ -635,12 +713,14 @@ const KanbanBoard = () => {
                 </div>
               )}
               
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => handleSaveCard(deal.id)}>
-                  <Check className="w-4 h-4" />
+              <div className="flex gap-2 pt-2">
+                <Button onClick={() => handleSaveCard(deal.id)}>
+                  <Check className="w-4 h-4 mr-2" />
+                  Salvar
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleCancelCardEdit}>
-                  <X className="w-4 h-4" />
+                <Button variant="outline" onClick={handleCancelCardEdit}>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
                 </Button>
               </div>
             </div>
@@ -660,16 +740,14 @@ const KanbanBoard = () => {
                         {getInitials(deal.companyName)}
                       </AvatarFallback>
                     </Avatar>
-                    {!isClientView && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditCard(deal)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditCard(deal)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
                 {deal.description && (
@@ -741,6 +819,16 @@ const KanbanBoard = () => {
                     ) : (
                       <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
                     )}
+                  </div>
+                )}
+                
+                {deal.notes && (
+                  <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                    <div className="flex items-center gap-1 mb-1">
+                      <FileText className="w-3 h-3 text-blue-600" />
+                      <strong className="text-xs text-blue-800">Anotações:</strong>
+                    </div>
+                    <div className="text-xs text-blue-800">{deal.notes}</div>
                   </div>
                 )}
               </CardContent>

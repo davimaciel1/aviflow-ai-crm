@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +14,6 @@ import {
   TrendingUp, 
   Brain,
   Calendar,
-  FileText,
   Settings,
   Bell,
   Search,
@@ -25,7 +25,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import KanbanBoard from "@/components/KanbanBoard";
 import ClientsList from "@/components/ClientsList";
 import TasksList from "@/components/TasksList";
-import DocumentsList from "@/components/DocumentsList";
 import AIInsights from "@/components/AIInsights";
 import CompanyUserManager from "@/components/CompanyUserManager";
 
@@ -46,9 +45,9 @@ const Index = () => {
 
   const getAvailableTabs = () => {
     if (isClientView) {
-      return ["dashboard", "kanban", "tasks", "documents"];
+      return ["dashboard", "kanban", "tasks"];
     }
-    return ["dashboard", "kanban", "clients", "users", "tasks", "documents", "settings"];
+    return ["dashboard", "kanban", "clients", "users", "tasks", "settings"];
   };
 
   const availableTabs = getAvailableTabs();
@@ -102,7 +101,7 @@ const Index = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full ${isClientView ? 'grid-cols-4' : 'grid-cols-7'} lg:w-fit`}>
+          <TabsList className={`grid w-full ${isClientView ? 'grid-cols-3' : 'grid-cols-6'} lg:w-fit`}>
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Dashboard
@@ -126,10 +125,6 @@ const Index = () => {
             <TabsTrigger value="tasks" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               {isClientView ? "Minhas Tarefas" : "Tarefas"}
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              {isClientView ? "Meus Documentos" : "Documentos"}
             </TabsTrigger>
             {!isClientView && (
               <TabsTrigger value="settings" className="flex items-center gap-2">
@@ -369,27 +364,6 @@ const Index = () => {
               )}
             </div>
             <TasksList />
-          </TabsContent>
-
-          {/* Documents Tab */}
-          <TabsContent value="documents" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900">
-                  {isClientView ? "Meus Documentos" : "Documentos"}
-                </h2>
-                <p className="text-slate-600">
-                  {isClientView ? "Acesse seus documentos e contratos" : "Gerencie e analise documentos com IA"}
-                </p>
-              </div>
-              {!isClientView && (
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Upload
-                </Button>
-              )}
-            </div>
-            <DocumentsList />
           </TabsContent>
 
           {!isClientView && (
