@@ -1,23 +1,20 @@
+
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  MoreHorizontal, 
   DollarSign, 
   Calendar, 
-  User, 
-  Phone,
-  Mail,
-  Building,
+  User,
   Plus,
   Edit3,
   Check,
-  X
+  X,
+  Settings
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,11 +25,8 @@ interface Deal {
   client: string;
   clientId: string;
   contact: string;
-  email: string;
-  phone: string;
   dueDate: string;
   priority: "low" | "medium" | "high";
-  tasks: { total: number; completed: number };
   confidentialInfo?: string;
 }
 
@@ -43,138 +37,206 @@ interface Column {
   color: string;
 }
 
+interface Pipeline {
+  id: string;
+  name: string;
+  columns: Column[];
+}
+
 const KanbanBoard = () => {
   const { user } = useAuth();
   const isClientView = user?.role === 'client';
   const [editingConfidential, setEditingConfidential] = useState<string | null>(null);
   const [tempConfidentialValue, setTempConfidentialValue] = useState<string>("");
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("sales");
 
-  const [columns, setColumns] = useState<Column[]>([
+  const [pipelines] = useState<Pipeline[]>([
     {
-      id: "prospecting",
-      title: "Prospecção",
-      color: "bg-slate-100",
-      deals: [
+      id: "sales",
+      name: "Pipeline de Vendas",
+      columns: [
         {
-          id: "1",
-          title: "Sistema ERP - TechCorp",
-          value: "R$ 150.000",
-          client: "TechCorp Ltd",
-          clientId: "techcorp",
-          contact: "João Silva",
-          email: "joao@techcorp.com",
-          phone: "(11) 99999-9999",
-          dueDate: "2024-06-15",
-          priority: "high",
-          tasks: { total: 5, completed: 2 },
-          confidentialInfo: "Margem: 45% - Concorrente: Oracle"
+          id: "prospecting",
+          title: "Prospecção",
+          color: "bg-slate-100",
+          deals: [
+            {
+              id: "1",
+              title: "Sistema ERP - TechCorp",
+              value: "R$ 150.000",
+              client: "TechCorp Ltd",
+              clientId: "techcorp",
+              contact: "João Silva",
+              dueDate: "15/06/2024",
+              priority: "high",
+              confidentialInfo: "Margem: 45% - Concorrente: Oracle"
+            },
+            {
+              id: "2",
+              title: "Consultoria Digital - StartupXYZ",
+              value: "R$ 75.000",
+              client: "StartupXYZ",
+              clientId: "startupxyz",
+              contact: "Maria Santos",
+              dueDate: "20/06/2024",
+              priority: "medium",
+              confidentialInfo: "Budget máximo: R$ 100k"
+            }
+          ]
         },
         {
-          id: "2",
-          title: "Consultoria Digital - StartupXYZ",
-          value: "R$ 75.000",
-          client: "StartupXYZ",
-          clientId: "startupxyz",
-          contact: "Maria Santos",
-          email: "maria@startupxyz.com",
-          phone: "(11) 88888-8888",
-          dueDate: "2024-06-20",
-          priority: "medium",
-          tasks: { total: 3, completed: 1 },
-          confidentialInfo: "Budget máximo: R$ 100k"
+          id: "qualification",
+          title: "Qualificação",
+          color: "bg-blue-50",
+          deals: [
+            {
+              id: "3",
+              title: "Website Institucional - ABC Corp",
+              value: "R$ 45.000",
+              client: "ABC Corporation",
+              clientId: "abccorp",
+              contact: "Pedro Oliveira",
+              dueDate: "18/06/2024",
+              priority: "medium",
+              confidentialInfo: "Decisor: CEO Pedro"
+            }
+          ]
+        },
+        {
+          id: "proposal",
+          title: "Proposta",
+          color: "bg-yellow-50",
+          deals: [
+            {
+              id: "4",
+              title: "App Mobile - RetailPlus",
+              value: "R$ 200.000",
+              client: "RetailPlus",
+              clientId: "retailplus",
+              contact: "Ana Costa",
+              dueDate: "12/06/2024",
+              priority: "high"
+            }
+          ]
+        },
+        {
+          id: "negotiation",
+          title: "Negociação",
+          color: "bg-orange-50",
+          deals: [
+            {
+              id: "5",
+              title: "Dashboard Analytics - DataCorp",
+              value: "R$ 120.000",
+              client: "DataCorp",
+              clientId: "datacorp",
+              contact: "Carlos Lima",
+              dueDate: "14/06/2024",
+              priority: "high"
+            }
+          ]
+        },
+        {
+          id: "won",
+          title: "Fechados",
+          color: "bg-green-50",
+          deals: [
+            {
+              id: "6",
+              title: "E-commerce - ShopMais",
+              value: "R$ 180.000",
+              client: "ShopMais",
+              clientId: "shopmais",
+              contact: "Lucas Ferreira",
+              dueDate: "10/06/2024",
+              priority: "medium"
+            }
+          ]
         }
       ]
     },
     {
-      id: "qualification",
-      title: "Qualificação",
-      color: "bg-blue-50",
-      deals: [
+      id: "support",
+      name: "Pipeline de Suporte",
+      columns: [
         {
-          id: "3",
-          title: "Website Institucional - ABC Corp",
-          value: "R$ 45.000",
-          client: "ABC Corporation",
-          clientId: "abccorp",
-          contact: "Pedro Oliveira",
-          email: "pedro@abccorp.com",
-          phone: "(11) 77777-7777",
-          dueDate: "2024-06-18",
-          priority: "medium",
-          tasks: { total: 4, completed: 3 },
-          confidentialInfo: "Decisor: CEO Pedro"
+          id: "new",
+          title: "Novos",
+          color: "bg-red-50",
+          deals: [
+            {
+              id: "7",
+              title: "Bug Sistema ERP",
+              value: "R$ 5.000",
+              client: "TechCorp Ltd",
+              clientId: "techcorp",
+              contact: "João Silva",
+              dueDate: "Hoje",
+              priority: "high"
+            }
+          ]
+        },
+        {
+          id: "in_progress",
+          title: "Em Andamento",
+          color: "bg-yellow-50",
+          deals: []
+        },
+        {
+          id: "testing",
+          title: "Testando",
+          color: "bg-blue-50",
+          deals: []
+        },
+        {
+          id: "resolved",
+          title: "Resolvidos",
+          color: "bg-green-50",
+          deals: []
         }
       ]
     },
     {
-      id: "proposal",
-      title: "Proposta",
-      color: "bg-yellow-50",
-      deals: [
+      id: "projects",
+      name: "Pipeline de Projetos",
+      columns: [
         {
-          id: "4",
-          title: "App Mobile - RetailPlus",
-          value: "R$ 200.000",
-          client: "RetailPlus",
-          clientId: "retailplus",
-          contact: "Ana Costa",
-          email: "ana@retailplus.com",
-          phone: "(11) 66666-6666",
-          dueDate: "2024-06-12",
-          priority: "high",
-          tasks: { total: 6, completed: 4 }
-        }
-      ]
-    },
-    {
-      id: "negotiation",
-      title: "Negociação",
-      color: "bg-orange-50",
-      deals: [
+          id: "planning",
+          title: "Planejamento",
+          color: "bg-purple-50",
+          deals: []
+        },
         {
-          id: "5",
-          title: "Dashboard Analytics - DataCorp",
-          value: "R$ 120.000",
-          client: "DataCorp",
-          clientId: "datacorp",
-          contact: "Carlos Lima",
-          email: "carlos@datacorp.com",
-          phone: "(11) 55555-5555",
-          dueDate: "2024-06-14",
-          priority: "high",
-          tasks: { total: 3, completed: 2 }
-        }
-      ]
-    },
-    {
-      id: "won",
-      title: "Fechados",
-      color: "bg-green-50",
-      deals: [
+          id: "development",
+          title: "Desenvolvimento",
+          color: "bg-blue-50",
+          deals: []
+        },
         {
-          id: "6",
-          title: "E-commerce - ShopMais",
-          value: "R$ 180.000",
-          client: "ShopMais",
-          clientId: "shopmais",
-          contact: "Lucas Ferreira",
-          email: "lucas@shopmais.com",
-          phone: "(11) 44444-4444",
-          dueDate: "2024-06-10",
-          priority: "medium",
-          tasks: { total: 8, completed: 8 }
+          id: "testing_proj",
+          title: "Testes",
+          color: "bg-yellow-50",
+          deals: []
+        },
+        {
+          id: "delivery",
+          title: "Entrega",
+          color: "bg-green-50",
+          deals: []
         }
       ]
     }
   ]);
 
+  const currentPipeline = pipelines.find(p => p.id === selectedPipeline) || pipelines[0];
+
   // Filter deals for client view
   const getFilteredColumns = () => {
     if (!isClientView || !user?.clientId) {
-      return columns;
+      return currentPipeline.columns;
     }
 
-    return columns.map(column => ({
+    return currentPipeline.columns.map(column => ({
       ...column,
       deals: column.deals.filter(deal => deal.clientId === user.clientId)
     }));
@@ -186,16 +248,7 @@ const KanbanBoard = () => {
   };
 
   const handleSaveConfidential = (dealId: string) => {
-    setColumns(prevColumns => 
-      prevColumns.map(column => ({
-        ...column,
-        deals: column.deals.map(deal => 
-          deal.id === dealId 
-            ? { ...deal, confidentialInfo: tempConfidentialValue }
-            : deal
-        )
-      }))
-    );
+    // Update logic would go here in a real app
     setEditingConfidential(null);
     setTempConfidentialValue("");
   };
@@ -210,69 +263,7 @@ const KanbanBoard = () => {
     if (isClientView) {
       return;
     }
-
-    const { destination, source, draggableId } = result;
-
-    if (!destination) {
-      return;
-    }
-
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
-
-    const sourceColumn = columns.find(col => col.id === source.droppableId);
-    const destColumn = columns.find(col => col.id === destination.droppableId);
-
-    if (!sourceColumn || !destColumn) {
-      return;
-    }
-
-    if (source.droppableId === destination.droppableId) {
-      // Moving within the same column
-      const newDeals = Array.from(sourceColumn.deals);
-      const [reorderedDeal] = newDeals.splice(source.index, 1);
-      newDeals.splice(destination.index, 0, reorderedDeal);
-
-      const newColumns = columns.map(col => {
-        if (col.id === sourceColumn.id) {
-          return {
-            ...col,
-            deals: newDeals
-          };
-        }
-        return col;
-      });
-
-      setColumns(newColumns);
-    } else {
-      // Moving between different columns
-      const sourceDeals = Array.from(sourceColumn.deals);
-      const destDeals = Array.from(destColumn.deals);
-      const [movedDeal] = sourceDeals.splice(source.index, 1);
-      destDeals.splice(destination.index, 0, movedDeal);
-
-      const newColumns = columns.map(col => {
-        if (col.id === sourceColumn.id) {
-          return {
-            ...col,
-            deals: sourceDeals
-          };
-        }
-        if (col.id === destColumn.id) {
-          return {
-            ...col,
-            deals: destDeals
-          };
-        }
-        return col;
-      });
-
-      setColumns(newColumns);
-    }
+    // Drag logic would be implemented here
   };
 
   const getPriorityColor = (priority: string) => {
@@ -291,61 +282,45 @@ const KanbanBoard = () => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`mb-4 hover:shadow-md transition-shadow ${!isClientView ? 'cursor-pointer' : ''} ${
-            snapshot.isDragging ? 'shadow-lg transform rotate-2' : ''
+          className={`mb-3 hover:shadow-md transition-shadow ${!isClientView ? 'cursor-pointer' : ''} ${
+            snapshot.isDragging ? 'shadow-lg transform rotate-1' : ''
           }`}
         >
-          <CardHeader className="pb-3">
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
-              {!isClientView && (
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-green-600" />
-              <span className="font-semibold text-green-600">{deal.value}</span>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium leading-tight">{deal.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Building className="w-4 h-4" />
-              <span>{deal.client}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <DollarSign className="w-4 h-4 text-green-600" />
+                <span className="font-semibold text-green-600 text-sm">{deal.value}</span>
+              </div>
+              <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs`}>
+                {deal.priority}
+              </Badge>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <User className="w-3 h-3" />
               <span>{deal.contact}</span>
             </div>
             
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="w-4 h-4" />
-              <span className="truncate">{deal.email}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Phone className="w-4 h-4" />
-              <span>{deal.phone}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="w-3 h-3" />
               <span>{deal.dueDate}</span>
             </div>
             
             {/* Show confidential info only to admins */}
-            {!isClientView && (
+            {!isClientView && deal.confidentialInfo && (
               <div className="p-2 bg-red-50 border border-red-200 rounded">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1">
                   <strong className="text-xs text-red-800">Confidencial:</strong>
                   {editingConfidential !== deal.id && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
-                      className="h-6 w-6 p-0"
+                      className="h-5 w-5 p-0"
                     >
                       <Edit3 className="w-3 h-3" />
                     </Button>
@@ -358,13 +333,13 @@ const KanbanBoard = () => {
                       value={tempConfidentialValue}
                       onChange={(e) => setTempConfidentialValue(e.target.value)}
                       placeholder="Informações confidenciais..."
-                      className="text-xs min-h-[60px] resize-none"
+                      className="text-xs min-h-[50px] resize-none"
                     />
                     <div className="flex gap-1">
                       <Button
                         size="sm"
                         onClick={() => handleSaveConfidential(deal.id)}
-                        className="h-6 px-2 text-xs"
+                        className="h-5 px-2 text-xs"
                       >
                         <Check className="w-3 h-3" />
                       </Button>
@@ -372,42 +347,17 @@ const KanbanBoard = () => {
                         size="sm"
                         variant="outline"
                         onClick={handleCancelEdit}
-                        className="h-6 px-2 text-xs"
+                        className="h-5 px-2 text-xs"
                       >
                         <X className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-xs text-red-800">
-                    {deal.confidentialInfo || "Clique no ícone de edição para adicionar informações confidenciais"}
-                  </div>
+                  <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
                 )}
               </div>
             )}
-            
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary" className={getPriorityColor(deal.priority)}>
-                {deal.priority}
-              </Badge>
-              <div className="text-xs text-muted-foreground">
-                {deal.tasks.completed}/{deal.tasks.total} tarefas
-              </div>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <Avatar className="w-6 h-6">
-                <AvatarFallback className="text-xs">
-                  {deal.contact.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <div className="w-full mx-2 bg-gray-200 rounded-full h-1.5">
-                <div 
-                  className="bg-blue-600 h-1.5 rounded-full" 
-                  style={{ width: `${(deal.tasks.completed / deal.tasks.total) * 100}%` }}
-                ></div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -417,48 +367,72 @@ const KanbanBoard = () => {
   const filteredColumns = getFilteredColumns();
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-6 overflow-x-auto pb-6 min-h-[600px]">
-        {filteredColumns.map((column) => (
-          <div key={column.id} className="flex-shrink-0 w-80">
-            <div className={`${column.color} rounded-lg p-4 min-h-full`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-slate-900">
-                  {column.title}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
-                    {column.deals.length}
-                  </Badge>
-                  {!isClientView && (
-                    <Button variant="ghost" size="sm">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-              
-              <Droppable droppableId={column.id}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`space-y-3 min-h-[200px] ${
-                      snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg' : ''
-                    }`}
-                  >
-                    {column.deals.map((deal, index) => (
-                      <DealCard key={deal.id} deal={deal} index={index} />
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </div>
+    <div className="space-y-4">
+      {/* Pipeline Selector */}
+      {!isClientView && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            <span className="text-sm font-medium">Pipeline:</span>
           </div>
-        ))}
-      </div>
-    </DragDropContext>
+          <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {pipelines.map((pipeline) => (
+                <SelectItem key={pipeline.id} value={pipeline.id}>
+                  {pipeline.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-6 min-h-[600px]">
+          {filteredColumns.map((column) => (
+            <div key={column.id} className="flex-shrink-0 w-72">
+              <div className={`${column.color} rounded-lg p-3 min-h-full`}>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-slate-900 text-sm">
+                    {column.title}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {column.deals.length}
+                    </Badge>
+                    {!isClientView && (
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                <Droppable droppableId={column.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`space-y-2 min-h-[200px] ${
+                        snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg' : ''
+                      }`}
+                    >
+                      {column.deals.map((deal, index) => (
+                        <DealCard key={deal.id} deal={deal} index={index} />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+    </div>
   );
 };
 
