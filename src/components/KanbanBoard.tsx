@@ -782,7 +782,10 @@ const KanbanBoard = () => {
             
             {/* Show notes preview - only latest note */}
             {deal.notes && deal.notes.length > 0 && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div 
+                className="p-3 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                onDoubleClick={() => handleEditCard(deal)}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-3 h-3 text-blue-600" />
                   <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
@@ -816,7 +819,7 @@ const KanbanBoard = () => {
                   ))}
                   {deal.notes.length > 1 && (
                     <div className="text-xs text-blue-600 font-medium">
-                      Clique para ver todas as {deal.notes.length} anotações
+                      Clique duplo para ver todas as {deal.notes.length} anotações
                     </div>
                   )}
                 </div>
