@@ -682,9 +682,9 @@ const KanbanBoard = () => {
           }`}
           onDoubleClick={() => handleEditCard(deal)}
         >
-          <CardContent className="p-4">
-            {/* Header row with title and edit button */}
-            <div className="flex items-start justify-between gap-3 mb-3">
+          <CardContent className="p-3">
+            {/* Header with title and edit button */}
+            <div className="flex items-start justify-between gap-2 mb-2">
               <h3 className="font-medium text-sm leading-tight text-slate-900 flex-1">
                 {deal.title}
               </h3>
@@ -695,11 +695,18 @@ const KanbanBoard = () => {
                   e.stopPropagation();
                   handleEditCard(deal);
                 }}
-                className="h-6 w-6 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-5 w-5 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <Edit className="w-3 h-3" />
               </Button>
             </div>
+
+            {/* Description */}
+            {deal.description && (
+              <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                {deal.description}
+              </p>
+            )}
 
             {/* Confidential section - only for admins */}
             {!isClientView && deal.confidentialInfo && (
@@ -767,11 +774,11 @@ const KanbanBoard = () => {
             {deal.notes && deal.notes.length > 0 && (
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="w-3 h-3 text-blue-600" />
-                <span className="text-xs text-blue-600 font-medium">{deal.notes.length} anotação(ões)</span>
+                <span className="text-xs text-blue-600 font-medium">{deal.notes.length} Anotações & Insights</span>
               </div>
             )}
 
-            {/* Company and contact info - moved to bottom */}
+            {/* Company and contact info at bottom */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Building className="w-3 h-3 text-slate-400" />
@@ -1204,3 +1211,5 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
+
+}
