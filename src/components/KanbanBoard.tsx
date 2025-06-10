@@ -1026,7 +1026,7 @@ const KanbanBoard = () => {
 
       {/* Edit Card Sheet */}
       <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-        <SheetContent side="right" className="w-[1000px] sm:w-[1100px] max-w-[90vw]">
+        <SheetContent side="right" className="w-[1200px] sm:w-[1300px] max-w-[95vw]">
           <SheetHeader>
             <SheetTitle>Editar Card</SheetTitle>
             <SheetDescription>
