@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -36,7 +36,7 @@ interface Column {
 }
 
 const KanbanBoard = () => {
-  const [columns] = useState<Column[]>([
+  const [columns, setColumns] = useState<Column[]>([
     {
       id: "prospecting",
       title: "Prospecção",
@@ -146,6 +146,71 @@ const KanbanBoard = () => {
     }
   ]);
 
+  const onDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) {
+      return;
+    }
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const sourceColumn = columns.find(col => col.id === source.droppableId);
+    const destColumn = columns.find(col => col.id === destination.droppableId);
+
+    if (!sourceColumn || !destColumn) {
+      return;
+    }
+
+    if (source.droppableId === destination.droppableId) {
+      // Moving within the same column
+      const newDeals = Array.from(sourceColumn.deals);
+      const [reorderedDeal] = newDeals.splice(source.index, 1);
+      newDeals.splice(destination.index, 0, reorderedDeal);
+
+      const newColumns = columns.map(col => {
+        if (col.id === sourceColumn.id) {
+          return {
+            ...col,
+            deals: newDeals
+          };
+        }
+        return col;
+      });
+
+      setColumns(newColumns);
+    } else {
+      // Moving between different columns
+      const sourceDeals = Array.from(sourceColumn.deals);
+      const destDeals = Array.from(destColumn.deals);
+      const [movedDeal] = sourceDeals.splice(source.index, 1);
+      destDeals.splice(destination.index, 0, movedDeal);
+
+      const newColumns = columns.map(col => {
+        if (col.id === sourceColumn.id) {
+          return {
+            ...col,
+            deals: sourceDeals
+          };
+        }
+        if (col.id === destColumn.id) {
+          return {
+            ...col,
+            deals: destDeals
+          };
+        }
+        return col;
+      });
+
+      setColumns(newColumns);
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high": return "bg-red-100 text-red-800";
@@ -155,100 +220,124 @@ const KanbanBoard = () => {
     }
   };
 
-  const DealCard = ({ deal }: { deal: Deal }) => (
-    <Card className="mb-4 hover:shadow-md transition-shadow cursor-pointer">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
-          <Button variant="ghost" size="sm">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-green-600" />
-          <span className="font-semibold text-green-600">{deal.value}</span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Building className="w-4 h-4" />
-          <span>{deal.client}</span>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <User className="w-4 h-4" />
-          <span>{deal.contact}</span>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="w-4 h-4" />
-          <span className="truncate">{deal.email}</span>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Phone className="w-4 h-4" />
-          <span>{deal.phone}</span>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Calendar className="w-4 h-4" />
-          <span>{deal.dueDate}</span>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <Badge variant="secondary" className={getPriorityColor(deal.priority)}>
-            {deal.priority}
-          </Badge>
-          <div className="text-xs text-muted-foreground">
-            {deal.tasks.completed}/{deal.tasks.total} tarefas
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center">
-          <Avatar className="w-6 h-6">
-            <AvatarFallback className="text-xs">
-              {deal.contact.split(' ').map(n => n[0]).join('')}
-            </AvatarFallback>
-          </Avatar>
-          <div className="w-full mx-2 bg-gray-200 rounded-full h-1.5">
-            <div 
-              className="bg-blue-600 h-1.5 rounded-full" 
-              style={{ width: `${(deal.tasks.completed / deal.tasks.total) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  return (
-    <div className="flex gap-6 overflow-x-auto pb-6 min-h-[600px]">
-      {columns.map((column) => (
-        <div key={column.id} className="flex-shrink-0 w-80">
-          <div className={`${column.color} rounded-lg p-4 min-h-full`}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-slate-900">
-                {column.title}
-              </h3>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  {column.deals.length}
-                </Badge>
-                <Button variant="ghost" size="sm">
-                  <Plus className="w-4 h-4" />
-                </Button>
+  const DealCard = ({ deal, index }: { deal: Deal; index: number }) => (
+    <Draggable draggableId={deal.id} index={index}>
+      {(provided, snapshot) => (
+        <Card 
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          className={`mb-4 hover:shadow-md transition-shadow cursor-pointer ${
+            snapshot.isDragging ? 'shadow-lg transform rotate-2' : ''
+          }`}
+        >
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
+              <Button variant="ghost" size="sm">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <span className="font-semibold text-green-600">{deal.value}</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building className="w-4 h-4" />
+              <span>{deal.client}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="w-4 h-4" />
+              <span>{deal.contact}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="w-4 h-4" />
+              <span className="truncate">{deal.email}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Phone className="w-4 h-4" />
+              <span>{deal.phone}</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="w-4 h-4" />
+              <span>{deal.dueDate}</span>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Badge variant="secondary" className={getPriorityColor(deal.priority)}>
+                {deal.priority}
+              </Badge>
+              <div className="text-xs text-muted-foreground">
+                {deal.tasks.completed}/{deal.tasks.total} tarefas
               </div>
             </div>
             
-            <div className="space-y-3">
-              {column.deals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} />
-              ))}
+            <div className="flex justify-between items-center">
+              <Avatar className="w-6 h-6">
+                <AvatarFallback className="text-xs">
+                  {deal.contact.split(' ').map(n => n[0]).join('')}
+                </AvatarFallback>
+              </Avatar>
+              <div className="w-full mx-2 bg-gray-200 rounded-full h-1.5">
+                <div 
+                  className="bg-blue-600 h-1.5 rounded-full" 
+                  style={{ width: `${(deal.tasks.completed / deal.tasks.total) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </Draggable>
+  );
+
+  return (
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className="flex gap-6 overflow-x-auto pb-6 min-h-[600px]">
+        {columns.map((column) => (
+          <div key={column.id} className="flex-shrink-0 w-80">
+            <div className={`${column.color} rounded-lg p-4 min-h-full`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-slate-900">
+                  {column.title}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">
+                    {column.deals.length}
+                  </Badge>
+                  <Button variant="ghost" size="sm">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <Droppable droppableId={column.id}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`space-y-3 min-h-[200px] ${
+                      snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg' : ''
+                    }`}
+                  >
+                    {column.deals.map((deal, index) => (
+                      <DealCard key={deal.id} deal={deal} index={index} />
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </DragDropContext>
   );
 };
 
