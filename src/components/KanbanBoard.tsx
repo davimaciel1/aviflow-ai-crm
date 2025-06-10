@@ -638,12 +638,6 @@ const KanbanBoard = () => {
           </CardHeader>
           
           <CardContent className="space-y-3 pt-0">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs font-medium px-2 py-1`}>
-                {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-              </Badge>
-            </div>
-            
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Building className="w-4 h-4 text-slate-400" />
