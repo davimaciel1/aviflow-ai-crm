@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { 
   User,
   Plus,
@@ -64,6 +65,7 @@ const KanbanBoard = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("sales");
   const [addingStage, setAddingStage] = useState<boolean>(false);
   const [newStageTitle, setNewStageTitle] = useState<string>("");
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState<boolean>(false);
 
   // Lista de empresas disponíveis
   const companies = [
@@ -375,6 +377,7 @@ const KanbanBoard = () => {
       confidentialInfo: deal.confidentialInfo || "",
       notes: deal.notes || ""
     });
+    setIsEditSheetOpen(true);
   };
 
   const handleSaveCard = (dealId: string) => {
@@ -398,11 +401,13 @@ const KanbanBoard = () => {
     }));
     setEditingCard(null);
     setTempCardData({});
+    setIsEditSheetOpen(false);
   };
 
   const handleCancelCardEdit = () => {
     setEditingCard(null);
     setTempCardData({});
+    setIsEditSheetOpen(false);
   };
 
   const handleEditConfidential = (dealId: string, currentValue: string = "") => {
@@ -599,272 +604,120 @@ const KanbanBoard = () => {
             deal.priority === 'medium' ? 'border-l-yellow-500' : 'border-l-green-500'
           } ${snapshot.isDragging ? 'shadow-2xl transform rotate-2 scale-105' : ''}`}
         >
-          {editingCard === deal.id ? (
-            <div className="p-4 space-y-4 max-w-2xl">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Título</label>
-                    <Input
-                      value={tempCardData.title || ""}
-                      onChange={(e) => setTempCardData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Título"
-                      className="text-sm"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Empresa</label>
-                    <Select
-                      value={tempCardData.clientId || ""}
-                      onValueChange={(value) => {
-                        const selectedCompany = companies.find(c => c.id === value);
-                        setTempCardData(prev => ({ 
-                          ...prev, 
-                          clientId: value,
-                          companyName: selectedCompany?.name || ""
-                        }));
-                      }}
-                    >
-                      <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Selecionar empresa" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Contato</label>
-                    <Input
-                      value={tempCardData.contact || ""}
-                      onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
-                      placeholder="Contato"
-                      className="text-sm"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Prioridade</label>
-                    <Select
-                      value={tempCardData.priority || "medium"}
-                      onValueChange={(value) => setTempCardData(prev => ({ ...prev, priority: value as Deal['priority'] }))}
-                    >
-                      <SelectTrigger className="text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Baixa</SelectItem>
-                        <SelectItem value="medium">Média</SelectItem>
-                        <SelectItem value="high">Alta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Descrição</label>
-                    <Textarea
-                      value={tempCardData.description || ""}
-                      onChange={(e) => setTempCardData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Descrição do projeto"
-                      className="text-sm min-h-[80px]"
-                    />
-                  </div>
-                  
-                  {!isClientView && (
-                    <div>
-                      <label className="text-sm font-medium mb-1 block text-red-600">Informações Confidenciais</label>
-                      <Textarea
-                        value={tempCardData.confidentialInfo || ""}
-                        onChange={(e) => setTempCardData(prev => ({ ...prev, confidentialInfo: e.target.value }))}
-                        placeholder="Informações internas e confidenciais"
-                        className="text-sm min-h-[80px] border-red-200"
-                      />
-                    </div>
-                  )}
-                </div>
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-sm font-semibold leading-tight text-slate-900 mb-2">
+                  {deal.title}
+                </CardTitle>
+                {deal.description && (
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {deal.description}
+                  </p>
+                )}
               </div>
-              
-              <div>
-                <label className="text-sm font-medium mb-1 block flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Anotações, Insights e Anexos
-                </label>
-                <Textarea
-                  value={tempCardData.notes || ""}
-                  onChange={(e) => setTempCardData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Use este espaço para adicionar anotações, insights, links para vídeos, fotos ou outros materiais relevantes ao projeto..."
-                  className="text-sm min-h-[120px]"
-                />
-                <div className="flex gap-2 mt-2">
-                  <Button variant="outline" size="sm" className="text-xs">
-                    <Camera className="w-3 h-3 mr-1" />
-                    Adicionar Foto
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    <Video className="w-3 h-3 mr-1" />
-                    Adicionar Vídeo
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Pipeline move option */}
-              {!isClientView && (
-                <div className="border-t pt-3">
-                  <label className="text-xs font-medium text-muted-foreground">Mover para pipeline:</label>
-                  <div className="flex gap-1 mt-1">
-                    {pipelines.filter(p => p.id !== selectedPipeline).map(pipeline => (
-                      <Button
-                        key={pipeline.id}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleMoveToPipeline(deal.id, pipeline.id)}
-                        className="text-xs h-6"
-                      >
-                        <ArrowRight className="w-3 h-3 mr-1" />
-                        {pipeline.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex gap-2 pt-2">
-                <Button onClick={() => handleSaveCard(deal.id)}>
-                  <Check className="w-4 h-4 mr-2" />
-                  Salvar
-                </Button>
-                <Button variant="outline" onClick={handleCancelCardEdit}>
-                  <X className="w-4 h-4 mr-2" />
-                  Cancelar
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
+                  {deal.avatar ? (
+                    <AvatarImage src={deal.avatar} alt={deal.companyName} />
+                  ) : null}
+                  <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+                    {getInitials(deal.companyName)}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditCard(deal)}
+                  className="h-8 w-8 p-0 hover:bg-slate-100"
+                >
+                  <Edit3 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
-          ) : (
-            <>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm font-semibold leading-tight text-slate-900 mb-2">
-                      {deal.title}
-                    </CardTitle>
-                    {deal.description && (
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        {deal.description}
-                      </p>
-                    )}
+          </CardHeader>
+          
+          <CardContent className="space-y-3 pt-0">
+            <div className="flex items-center justify-between">
+              <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs font-medium px-2 py-1`}>
+                {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
+              </Badge>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <Building className="w-4 h-4 text-slate-400" />
+                <span className="font-medium truncate">{deal.companyName}</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <User className="w-4 h-4 text-slate-400" />
+                <span className="truncate">{deal.contact}</span>
+              </div>
+            </div>
+            
+            {/* Show confidential info only to admins */}
+            {!isClientView && deal.confidentialInfo && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-red-600" />
+                    <strong className="text-xs text-red-800 font-semibold">Confidencial</strong>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Avatar className="w-8 h-8 border-2 border-white shadow-sm">
-                      {deal.avatar ? (
-                        <AvatarImage src={deal.avatar} alt={deal.companyName} />
-                      ) : null}
-                      <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                        {getInitials(deal.companyName)}
-                      </AvatarFallback>
-                    </Avatar>
+                  {editingConfidential !== deal.id && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditCard(deal)}
-                      className="h-8 w-8 p-0 hover:bg-slate-100"
+                      onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
+                      className="h-6 w-6 p-0 hover:bg-red-100"
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="w-3 h-3" />
                     </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-3 pt-0">
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className={`${getPriorityColor(deal.priority)} text-xs font-medium px-2 py-1`}>
-                    {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                  </Badge>
+                  )}
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <Building className="w-4 h-4 text-slate-400" />
-                    <span className="font-medium truncate">{deal.companyName}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <User className="w-4 h-4 text-slate-400" />
-                    <span className="truncate">{deal.contact}</span>
-                  </div>
-                </div>
-                
-                {/* Show confidential info only to admins */}
-                {!isClientView && deal.confidentialInfo && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1">
-                        <Shield className="w-3 h-3 text-red-600" />
-                        <strong className="text-xs text-red-800 font-semibold">Confidencial</strong>
-                      </div>
-                      {editingConfidential !== deal.id && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo || "")}
-                          className="h-6 w-6 p-0 hover:bg-red-100"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </Button>
-                      )}
+                {editingConfidential === deal.id ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={tempConfidentialValue}
+                      onChange={(e) => setTempConfidentialValue(e.target.value)}
+                      placeholder="Informações confidenciais..."
+                      className="text-xs min-h-[60px] resize-none border-red-200"
+                    />
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveConfidential(deal.id)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <Check className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelConfidentialEdit}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
                     </div>
-                    
-                    {editingConfidential === deal.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={tempConfidentialValue}
-                          onChange={(e) => setTempConfidentialValue(e.target.value)}
-                          placeholder="Informações confidenciais..."
-                          className="text-xs min-h-[60px] resize-none border-red-200"
-                        />
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveConfidential(deal.id)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            <Check className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCancelConfidentialEdit}
-                            className="h-6 px-2 text-xs"
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-red-800 leading-relaxed">{deal.confidentialInfo}</div>
-                    )}
                   </div>
+                ) : (
+                  <div className="text-xs text-red-800 leading-relaxed">{deal.confidentialInfo}</div>
                 )}
-                
-                {deal.notes && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-3 h-3 text-blue-600" />
-                      <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
-                    </div>
-                    <div className="text-xs text-blue-800 leading-relaxed whitespace-pre-wrap">{deal.notes}</div>
-                  </div>
-                )}
-              </CardContent>
-            </>
-          )}
+              </div>
+            )}
+            
+            {deal.notes && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-3 h-3 text-blue-600" />
+                  <strong className="text-xs text-blue-800 font-semibold">Anotações & Insights</strong>
+                </div>
+                <div className="text-xs text-blue-800 leading-relaxed whitespace-pre-wrap">{deal.notes}</div>
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
     </Draggable>
@@ -1058,6 +911,171 @@ const KanbanBoard = () => {
           )}
         </Droppable>
       </DragDropContext>
+
+      {/* Edit Card Sheet */}
+      <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+        <SheetContent side="right" className="w-[600px] sm:w-[700px]">
+          <SheetHeader>
+            <SheetTitle>Editar Card</SheetTitle>
+            <SheetDescription>
+              Edite as informações do card abaixo
+            </SheetDescription>
+          </SheetHeader>
+          
+          <div className="py-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Título</label>
+                  <Input
+                    value={tempCardData.title || ""}
+                    onChange={(e) => setTempCardData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Título do projeto"
+                    className="w-full"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Empresa</label>
+                  <Select
+                    value={tempCardData.clientId || ""}
+                    onValueChange={(value) => {
+                      const selectedCompany = companies.find(c => c.id === value);
+                      setTempCardData(prev => ({ 
+                        ...prev, 
+                        clientId: value,
+                        companyName: selectedCompany?.name || ""
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecionar empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Contato</label>
+                  <Input
+                    value={tempCardData.contact || ""}
+                    onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
+                    placeholder="Nome do contato"
+                    className="w-full"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Prioridade</label>
+                  <Select
+                    value={tempCardData.priority || "medium"}
+                    onValueChange={(value) => setTempCardData(prev => ({ ...prev, priority: value as Deal['priority'] }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Baixa</SelectItem>
+                      <SelectItem value="medium">Média</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Descrição</label>
+                  <Textarea
+                    value={tempCardData.description || ""}
+                    onChange={(e) => setTempCardData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Descrição detalhada do projeto"
+                    className="w-full min-h-[100px]"
+                  />
+                </div>
+                
+                {!isClientView && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-red-600 flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Informações Confidenciais
+                    </label>
+                    <Textarea
+                      value={tempCardData.confidentialInfo || ""}
+                      onChange={(e) => setTempCardData(prev => ({ ...prev, confidentialInfo: e.target.value }))}
+                      placeholder="Informações internas e confidenciais (visível apenas para administradores)"
+                      className="w-full min-h-[100px] border-red-200 focus:border-red-300"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Anotações, Insights e Anexos
+                </label>
+                <Textarea
+                  value={tempCardData.notes || ""}
+                  onChange={(e) => setTempCardData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Use este espaço para adicionar anotações, insights, links para vídeos, fotos ou outros materiais relevantes ao projeto..."
+                  className="w-full min-h-[150px]"
+                />
+                <div className="flex gap-2 mt-3">
+                  <Button variant="outline" size="sm">
+                    <Camera className="w-4 h-4 mr-2" />
+                    Adicionar Foto
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Video className="w-4 h-4 mr-2" />
+                    Adicionar Vídeo
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Pipeline move option */}
+              {!isClientView && (
+                <div className="border-t pt-4">
+                  <label className="text-sm font-medium mb-2 block">Mover para pipeline:</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {pipelines.filter(p => p.id !== selectedPipeline).map(pipeline => (
+                      <Button
+                        key={pipeline.id}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => editingCard && handleMoveToPipeline(editingCard, pipeline.id)}
+                        className="text-sm"
+                      >
+                        <ArrowRight className="w-4 h-4 mr-2" />
+                        {pipeline.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3 pt-4 border-t">
+              <Button onClick={() => editingCard && handleSaveCard(editingCard)} className="flex-1">
+                <Check className="w-4 h-4 mr-2" />
+                Salvar Alterações
+              </Button>
+              <Button variant="outline" onClick={handleCancelCardEdit} className="flex-1">
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
