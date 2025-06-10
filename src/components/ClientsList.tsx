@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -117,7 +118,8 @@ const ClientsList = () => {
       address: "Belo Horizonte, MG",
       status: "prospect",
       dealsValue: "R$ 120.000",
-      dealsCount: 1
+      dealsCount: 1,
+      users: []
     },
     {
       id: "4",
@@ -129,7 +131,8 @@ const ClientsList = () => {
       address: "Curitiba, PR",
       status: "active",
       dealsValue: "R$ 380.000",
-      dealsCount: 4
+      dealsCount: 4,
+      users: []
     },
     {
       id: "5",
@@ -141,7 +144,8 @@ const ClientsList = () => {
       address: "Porto Alegre, RS",
       status: "inactive",
       dealsValue: "R$ 95.000",
-      dealsCount: 1
+      dealsCount: 1,
+      users: []
     }
   ]);
 
