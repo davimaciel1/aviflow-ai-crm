@@ -17,10 +17,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { useKanbanConfig } from "@/hooks/useKanbanConfig";
+import KanbanConfigPanel from "./KanbanConfigPanel";
 
 const KanbanBoard = () => {
   const { user } = useAuth();
   const isClientView = user?.role === 'client';
+  const { config, updateCardWidth } = useKanbanConfig();
   
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [showConfidential, setShowConfidential] = useState<Set<string>>(new Set());
@@ -355,37 +358,50 @@ const KanbanBoard = () => {
   };
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 overflow-x-auto pb-4">
-        {stages.map((stage) => (
-          <div key={stage.id} className="flex-shrink-0 w-48">
-            <div className={`rounded-lg p-3 ${stage.color} mb-3`}>
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">{stage.title}</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {getDealsForStage(stage.id).length}
-                </Badge>
-              </div>
-            </div>
-            
-            <Droppable droppableId={stage.id}>
-              {(provided, snapshot) => (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className={`space-y-2 max-h-96 overflow-y-auto min-h-32 p-2 rounded-lg ${
-                    snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''
-                  } transition-colors`}
-                >
-                  {getDealsForStage(stage.id).map((deal, index) => renderDealCard(deal, index))}
-                  {provided.placeholder}
+    <div className="space-y-4">
+      <KanbanConfigPanel
+        cardWidth={config.cardWidth}
+        minWidth={config.minCardWidth}
+        maxWidth={config.maxCardWidth}
+        onWidthChange={updateCardWidth}
+      />
+      
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {stages.map((stage) => (
+            <div 
+              key={stage.id} 
+              className="flex-shrink-0"
+              style={{ width: `${config.cardWidth}px` }}
+            >
+              <div className={`rounded-lg p-3 ${stage.color} mb-3`}>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">{stage.title}</h3>
+                  <Badge variant="secondary" className="text-xs">
+                    {getDealsForStage(stage.id).length}
+                  </Badge>
                 </div>
-              )}
-            </Droppable>
-          </div>
-        ))}
-      </div>
-    </DragDropContext>
+              </div>
+              
+              <Droppable droppableId={stage.id}>
+                {(provided, snapshot) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className={`space-y-2 max-h-96 overflow-y-auto min-h-32 p-2 rounded-lg ${
+                      snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''
+                    } transition-colors`}
+                  >
+                    {getDealsForStage(stage.id).map((deal, index) => renderDealCard(deal, index))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
+    </div>
   );
 };
 
