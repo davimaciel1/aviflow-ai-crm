@@ -23,7 +23,8 @@ import {
   Plus,
   Check,
   X,
-  User
+  User,
+  Upload
 } from "lucide-react";
 
 interface Client {
@@ -66,6 +67,8 @@ const ClientsList = () => {
   const [editingAvatarId, setEditingAvatarId] = useState<string | null>(null);
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [newAvatarUrl, setNewAvatarUrl] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -286,26 +289,58 @@ const ClientsList = () => {
   const handleEditAvatar = (clientId: string, currentAvatar?: string) => {
     setEditingAvatarId(clientId);
     setNewAvatarUrl(currentAvatar || "");
+    setUploadedFile(null);
+    setPreviewUrl(currentAvatar || "");
     setIsAvatarDialogOpen(true);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setNewAvatarUrl(""); // Clear URL input when file is selected
+    }
+  };
+
+  const handleUrlChange = (url: string) => {
+    setNewAvatarUrl(url);
+    setPreviewUrl(url);
+    setUploadedFile(null); // Clear file when URL is entered
   };
 
   const handleSaveAvatar = () => {
     if (!editingAvatarId) return;
 
+    let avatarUrl = "";
+    
+    if (uploadedFile) {
+      // In a real app, you would upload to a service like Supabase Storage
+      // For now, we'll use the object URL (note: this won't persist after page reload)
+      avatarUrl = URL.createObjectURL(uploadedFile);
+    } else {
+      avatarUrl = newAvatarUrl;
+    }
+
     setClients(prev => prev.map(client => 
       client.id === editingAvatarId 
-        ? { ...client, avatar: newAvatarUrl }
+        ? { ...client, avatar: avatarUrl }
         : client
     ));
 
     setEditingAvatarId(null);
     setNewAvatarUrl("");
+    setUploadedFile(null);
+    setPreviewUrl("");
     setIsAvatarDialogOpen(false);
   };
 
   const handleCancelAvatarEdit = () => {
     setEditingAvatarId(null);
     setNewAvatarUrl("");
+    setUploadedFile(null);
+    setPreviewUrl("");
     setIsAvatarDialogOpen(false);
   };
 
@@ -448,24 +483,52 @@ const ClientsList = () => {
           <DialogHeader>
             <DialogTitle>Editar Avatar</DialogTitle>
             <DialogDescription>
-              Adicione uma URL de imagem para o avatar do usuário
+              Faça upload de uma imagem ou adicione uma URL para o avatar
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
+              <label className="text-sm font-medium mb-2 block">Upload de Arquivo</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="avatar-upload"
+                />
+                <label htmlFor="avatar-upload" className="flex-1">
+                  <Button variant="outline" className="w-full cursor-pointer" asChild>
+                    <div className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      {uploadedFile ? uploadedFile.name : "Escolher arquivo"}
+                    </div>
+                  </Button>
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-gray-200"></div>
+              <span className="text-sm text-gray-500">ou</span>
+              <div className="flex-1 h-px bg-gray-200"></div>
+            </div>
+            
+            <div>
               <label className="text-sm font-medium mb-2 block">URL da Imagem</label>
               <Input
                 value={newAvatarUrl}
-                onChange={(e) => setNewAvatarUrl(e.target.value)}
+                onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder="https://exemplo.com/avatar.jpg"
+                disabled={!!uploadedFile}
               />
             </div>
             
-            {newAvatarUrl && (
+            {previewUrl && (
               <div className="flex justify-center">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={newAvatarUrl} />
+                  <AvatarImage src={previewUrl} />
                   <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                     Preview
                   </AvatarFallback>
@@ -816,3 +879,5 @@ const ClientsList = () => {
 };
 
 export default ClientsList;
+
+}
