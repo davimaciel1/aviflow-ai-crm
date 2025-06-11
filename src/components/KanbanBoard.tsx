@@ -75,6 +75,15 @@ interface Stage {
   deals: Deal[];
 }
 
+interface Client {
+  id: string;
+  name: string;
+  company: string;
+  contact: string;
+  email: string;
+  phone?: string;
+}
+
 const KanbanBoard = () => {
   const { user } = useAuth();
   const isClientView = user?.role === 'client';
@@ -91,7 +100,7 @@ const KanbanBoard = () => {
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   
-  // Novos estados para adicionar cliente
+  // Estados para adicionar cliente
   const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState<boolean>(false);
   const [newClientData, setNewClientData] = useState({
     name: "",
@@ -100,8 +109,28 @@ const KanbanBoard = () => {
     phone: ""
   });
 
+  // Estados para novo deal
+  const [isAddDealDialogOpen, setIsAddDealDialogOpen] = useState<boolean>(false);
+  const [newDealData, setNewDealData] = useState({
+    title: "",
+    description: "",
+    clientId: "",
+    contact: "",
+    priority: "low" as const,
+    stageId: ""
+  });
+
+  // Estados para gerenciar pipelines
+  const [isAddPipelineDialogOpen, setIsAddPipelineDialogOpen] = useState<boolean>(false);
+  const [isEditPipelineDialogOpen, setIsEditPipelineDialogOpen] = useState<boolean>(false);
+  const [editingPipelineId, setEditingPipelineId] = useState<string | null>(null);
+  const [newPipelineData, setNewPipelineData] = useState({
+    name: "",
+    stages: [{ title: "Novo Stage", color: "bg-blue-100" }]
+  });
+
   // Get clients from localStorage - buscar na chave correta
-  const getClientsFromStorage = () => {
+  const getClientsFromStorage = (): Client[] => {
     try {
       console.log('Buscando clientes no localStorage...');
       
@@ -117,7 +146,8 @@ const KanbanBoard = () => {
               name: client.company || client.name,
               company: client.company,
               contact: client.name,
-              email: client.email
+              email: client.email,
+              phone: client.phone || ""
             }));
           }
         } catch (parseError) {
@@ -137,7 +167,8 @@ const KanbanBoard = () => {
               name: client.name,
               company: client.name,
               contact: client.contactEmail || '',
-              email: client.contactEmail || ''
+              email: client.contactEmail || '',
+              phone: ""
             }));
           }
         } catch (parseError) {
@@ -153,7 +184,7 @@ const KanbanBoard = () => {
     }
   };
 
-  const [clients, setClients] = useState(() => getClientsFromStorage());
+  const [clients, setClients] = useState<Client[]>(() => getClientsFromStorage());
 
   // Função para adicionar novo cliente
   const handleAddNewClient = () => {
@@ -161,12 +192,13 @@ const KanbanBoard = () => {
       return;
     }
 
-    const newClient = {
+    const newClient: Client = {
       id: `client-${Date.now()}`,
       name: newClientData.name,
       company: newClientData.company,
       email: newClientData.email,
-      phone: newClientData.phone
+      phone: newClientData.phone,
+      contact: newClientData.name
     };
 
     // Adicionar ao estado local
@@ -193,6 +225,145 @@ const KanbanBoard = () => {
     // Limpar formulário e fechar modal
     setNewClientData({ name: "", company: "", email: "", phone: "" });
     setIsAddClientDialogOpen(false);
+  };
+
+  // Função para adicionar novo deal
+  const handleAddNewDeal = () => {
+    if (!newDealData.title.trim() || !newDealData.stageId) {
+      return;
+    }
+
+    const selectedClient = clients.find(c => c.id === newDealData.clientId);
+    
+    const newDeal: Deal = {
+      id: `deal-${Date.now()}`,
+      title: newDealData.title,
+      description: newDealData.description,
+      client: selectedClient?.company || "",
+      clientId: newDealData.clientId,
+      companyName: selectedClient?.company,
+      contact: selectedClient?.contact || newDealData.contact,
+      priority: newDealData.priority,
+      stageId: newDealData.stageId,
+      notes: []
+    };
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id === newDealData.stageId) {
+            return { ...stage, deals: [...stage.deals, newDeal] };
+          }
+          return stage;
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    // Limpar formulário e fechar modal
+    setNewDealData({
+      title: "",
+      description: "",
+      clientId: "",
+      contact: "",
+      priority: "low",
+      stageId: ""
+    });
+    setIsAddDealDialogOpen(false);
+  };
+
+  // Função para adicionar nova pipeline
+  const handleAddNewPipeline = () => {
+    if (!newPipelineData.name.trim()) {
+      return;
+    }
+
+    const newPipeline: Pipeline = {
+      id: `pipeline-${Date.now()}`,
+      name: newPipelineData.name,
+      stages: newPipelineData.stages.map((stage, index) => ({
+        id: `stage-${Date.now()}-${index}`,
+        title: stage.title,
+        color: stage.color,
+        deals: []
+      }))
+    };
+
+    setPipelines(prev => [...prev, newPipeline]);
+
+    // Limpar formulário e fechar modal
+    setNewPipelineData({
+      name: "",
+      stages: [{ title: "Novo Stage", color: "bg-blue-100" }]
+    });
+    setIsAddPipelineDialogOpen(false);
+  };
+
+  // Função para editar pipeline
+  const handleEditPipeline = (pipelineId: string) => {
+    const pipeline = pipelines.find(p => p.id === pipelineId);
+    if (pipeline) {
+      setNewPipelineData({
+        name: pipeline.name,
+        stages: pipeline.stages.map(stage => ({ title: stage.title, color: stage.color }))
+      });
+      setEditingPipelineId(pipelineId);
+      setIsEditPipelineDialogOpen(true);
+    }
+  };
+
+  // Função para salvar edição da pipeline
+  const handleSavePipelineEdit = () => {
+    if (!editingPipelineId || !newPipelineData.name.trim()) {
+      return;
+    }
+
+    setPipelines(prev => prev.map(pipeline => {
+      if (pipeline.id === editingPipelineId) {
+        return {
+          ...pipeline,
+          name: newPipelineData.name,
+          stages: pipeline.stages.map((stage, index) => {
+            const newStageData = newPipelineData.stages[index];
+            if (newStageData) {
+              return {
+                ...stage,
+                title: newStageData.title,
+                color: newStageData.color
+              };
+            }
+            return stage;
+          })
+        };
+      }
+      return pipeline;
+    }));
+
+    // Limpar e fechar
+    setNewPipelineData({
+      name: "",
+      stages: [{ title: "Novo Stage", color: "bg-blue-100" }]
+    });
+    setEditingPipelineId(null);
+    setIsEditPipelineDialogOpen(false);
+  };
+
+  // Função para excluir pipeline
+  const handleDeletePipeline = (pipelineId: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta pipeline?")) return;
+    
+    setPipelines(prev => prev.filter(p => p.id !== pipelineId));
+    
+    // Se a pipeline excluída era a selecionada, selecionar a primeira disponível
+    if (selectedPipeline === pipelineId) {
+      const remainingPipelines = pipelines.filter(p => p.id !== pipelineId);
+      if (remainingPipelines.length > 0) {
+        setSelectedPipeline(remainingPipelines[0].id);
+      }
+    }
   };
 
   // Example pipelines and stages data
@@ -607,7 +778,7 @@ const KanbanBoard = () => {
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Selecionar pipeline" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white border shadow-lg">
               {pipelines.map((pipeline) => (
                 <SelectItem key={pipeline.id} value={pipeline.id}>
                   {pipeline.name}
@@ -615,6 +786,43 @@ const KanbanBoard = () => {
               ))}
             </SelectContent>
           </Select>
+          
+          {!isClientView && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Pipelines
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white border shadow-lg">
+                  <DropdownMenuItem onClick={() => setIsAddPipelineDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova Pipeline
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEditPipeline(selectedPipeline)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar Pipeline
+                  </DropdownMenuItem>
+                  {pipelines.length > 1 && (
+                    <DropdownMenuItem 
+                      onClick={() => handleDeletePipeline(selectedPipeline)}
+                      className="text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir Pipeline
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button onClick={() => setIsAddDealDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Deal
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -893,6 +1101,165 @@ const KanbanBoard = () => {
           )}
         </div>
       </DragDropContext>
+
+      {/* Dialog para Novo Deal */}
+      <Dialog open={isAddDealDialogOpen} onOpenChange={setIsAddDealDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Deal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Título</label>
+              <Input
+                value={newDealData.title}
+                onChange={(e) => setNewDealData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Nome do deal"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Descrição</label>
+              <Textarea
+                value={newDealData.description}
+                onChange={(e) => setNewDealData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Descrição do deal..."
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Cliente</label>
+                <Select
+                  value={newDealData.clientId}
+                  onValueChange={(value) => setNewDealData(prev => ({ ...prev, clientId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar cliente" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg">
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.company} - {client.contact}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Stage</label>
+                <Select
+                  value={newDealData.stageId}
+                  onValueChange={(value) => setNewDealData(prev => ({ ...prev, stageId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar stage" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg">
+                    {currentPipeline.stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        {stage.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Prioridade</label>
+              <Select
+                value={newDealData.priority}
+                onValueChange={(value: "low" | "medium" | "high") => setNewDealData(prev => ({ ...prev, priority: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white border shadow-lg">
+                  <SelectItem value="low">Baixa</SelectItem>
+                  <SelectItem value="medium">Média</SelectItem>
+                  <SelectItem value="high">Alta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleAddNewDeal} className="flex-1">
+                <Check className="w-4 h-4 mr-2" />
+                Adicionar Deal
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAddDealDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Nova Pipeline */}
+      <Dialog open={isAddPipelineDialogOpen} onOpenChange={setIsAddPipelineDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Pipeline</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Nome da Pipeline</label>
+              <Input
+                value={newPipelineData.name}
+                onChange={(e) => setNewPipelineData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome da pipeline"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleAddNewPipeline} className="flex-1">
+                <Check className="w-4 h-4 mr-2" />
+                Criar Pipeline
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAddPipelineDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Editar Pipeline */}
+      <Dialog open={isEditPipelineDialogOpen} onOpenChange={setIsEditPipelineDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Editar Pipeline</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Nome da Pipeline</label>
+              <Input
+                value={newPipelineData.name}
+                onChange={(e) => setNewPipelineData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome da pipeline"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSavePipelineEdit} className="flex-1">
+                <Check className="w-4 h-4 mr-2" />
+                Salvar Alterações
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditPipelineDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Card Drawer */}
       <Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
