@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -425,6 +424,27 @@ const KanbanBoard = () => {
     });
   };
 
+  // Helper function to get client display information
+  const getClientDisplayInfo = (deal: Deal) => {
+    // First try to find the client by clientId
+    const clientFromStorage = clients.find(c => c.id === deal.clientId);
+    
+    if (clientFromStorage) {
+      return {
+        name: clientFromStorage.name,
+        company: clientFromStorage.company,
+        avatar: clientFromStorage.avatar
+      };
+    }
+    
+    // Fallback to deal's stored client data
+    return {
+      name: deal.contact || deal.client || "Contato não informado",
+      company: deal.companyName || deal.client || "Empresa não informada",
+      avatar: deal.avatar
+    };
+  };
+
   const handleEditStage = (stageId: string, currentTitle: string) => {
     setEditingStage(stageId);
     setTempStageTitle(currentTitle);
@@ -501,7 +521,14 @@ const KanbanBoard = () => {
 
   const handleEditCard = (deal: Deal) => {
     setEditingCard(deal.id);
-    setTempCardData({ ...deal });
+    // When editing, ensure we show the correct client data
+    const clientInfo = getClientDisplayInfo(deal);
+    setTempCardData({ 
+      ...deal,
+      contact: clientInfo.name,
+      companyName: clientInfo.company,
+      client: clientInfo.company
+    });
     setIsEditDrawerOpen(true);
   };
 
@@ -519,8 +546,8 @@ const KanbanBoard = () => {
               return { 
                 ...deal, 
                 ...tempCardData,
-                // Ensure client data is properly updated
-                client: selectedClient?.company || tempCardData.client || deal.client,
+                // Ensure client data is properly updated and synchronized
+                client: selectedClient?.company || tempCardData.companyName || deal.client,
                 companyName: selectedClient?.company || tempCardData.companyName || deal.companyName,
                 contact: selectedClient?.name || tempCardData.contact || deal.contact
               };
@@ -612,10 +639,10 @@ const KanbanBoard = () => {
           if (stage.id !== stageId) return stage;
 
           const newDeals = stage.deals.map(deal => {
-            if (deal.id === dealId) {
+            if (deal.id === dealId && deal.notes) {
               return { 
                 ...deal, 
-                notes: [...(deal.notes || []), note]
+                notes: deal.notes.filter(note => note.id !== noteId)
               };
             }
             return deal;
@@ -812,6 +839,222 @@ const KanbanBoard = () => {
       setEditingStage(stageId);
       setTempStageTitle(currentTitle);
     }
+  };
+
+  const renderDealCard = (deal: Deal, index: number, stage: any) => {
+    const isExpanded = expandedCards.has(deal.id);
+    const clientInfo = getClientDisplayInfo(deal);
+    
+    return (
+      <Draggable
+        key={deal.id}
+        draggableId={deal.id}
+        index={index}
+        isDragDisabled={isClientView}
+      >
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
+          >
+            <div className="p-3">
+              <div className="flex justify-between items-start">
+                <h4 className="font-medium text-slate-800">{deal.title}</h4>
+                <div className="flex items-center">
+                  <Badge className={getPriorityColor(deal.priority)}>
+                    {getPriorityLabel(deal.priority)}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleExpanded(deal.id)}
+                    className="h-7 w-7 p-0 ml-1"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              
+              {deal.description && (
+                <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+                  {deal.description}
+                </p>
+              )}
+              
+              {clientInfo.company && (
+                <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
+                  <Building2 className="h-3 w-3" />
+                  <span>{clientInfo.company}</span>
+                </div>
+              )}
+
+              {clientInfo.name && (
+                <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                  <User className="h-3 w-3" />
+                  <span>{clientInfo.name}</span>
+                </div>
+              )}
+              
+              {/* Rest of the card content when expanded */}
+              {isExpanded && (
+                <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+                  {deal.value && (
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <span className="font-medium text-green-600">
+                        R$ {deal.value.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Confidential Information */}
+                  <div className="bg-slate-50 rounded p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1 text-xs font-medium text-slate-700">
+                        <Lock className="h-3 w-3" />
+                        <span>Informação Confidencial</span>
+                      </div>
+                      {!isClientView && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditConfidential(deal.id, deal.confidential)}
+                          className="h-5 w-5 p-0"
+                        >
+                          <PenSquare className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {editingConfidential === deal.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={tempConfidentialValue}
+                          onChange={(e) => setTempConfidentialValue(e.target.value)}
+                          placeholder="Informação confidencial..."
+                          className="text-xs min-h-[60px]"
+                        />
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSaveConfidential(deal.id, stage.id)}
+                            className="h-7 text-xs flex-1"
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Salvar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelEditConfidential}
+                            className="h-7 text-xs flex-1"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-600">
+                        {deal.confidential || "Nenhuma informação confidencial"}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Notes Section */}
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <MessageSquare className="h-3 w-3" />
+                      <span className="text-xs font-medium">Notas</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {deal.notes && deal.notes.length > 0 ? (
+                        deal.notes.map(note => (
+                          <div key={note.id} className="bg-slate-50 rounded p-2">
+                            <div className="flex justify-between">
+                              <p className="text-xs text-slate-600">{note.text}</p>
+                              {!isClientView && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteNote(deal.id, stage.id, note.id)}
+                                  className="h-5 w-5 p-0 -mt-1 -mr-1"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 mt-1">
+                              <Clock className="h-2 w-2 text-slate-400" />
+                              <span className="text-[10px] text-slate-400">
+                                {note.date} por {note.author}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">
+                          Nenhuma nota
+                        </p>
+                      )}
+                      
+                      {!isClientView && (
+                        <div className="pt-1">
+                          <Textarea
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            placeholder="Adicionar nota..."
+                            className="text-xs min-h-[60px]"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleAddNote(deal.id, stage.id)}
+                            className="mt-2 h-7 text-xs w-full"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Adicionar Nota
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {!isClientView && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditCard(deal)}
+                        className="flex-1 h-8"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteCard(deal.id)}
+                        className="flex-1 h-8 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Excluir
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Draggable>
+    );
   };
 
   return (
@@ -1092,219 +1335,7 @@ const KanbanBoard = () => {
                       {...provided.droppableProps}
                       className="min-h-[200px] p-3 space-y-3"
                     >
-                      {stage.deals.map((deal, index) => {
-                        const isExpanded = expandedCards.has(deal.id);
-                        
-                        return (
-                          <Draggable
-                            key={deal.id}
-                            draggableId={deal.id}
-                            index={index}
-                            isDragDisabled={isClientView}
-                          >
-                            {(provided) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
-                              >
-                                <div className="p-3">
-                                  <div className="flex justify-between items-start">
-                                    <h4 className="font-medium text-slate-800">{deal.title}</h4>
-                                    <div className="flex items-center">
-                                      <Badge className={getPriorityColor(deal.priority)}>
-                                        {getPriorityLabel(deal.priority)}
-                                      </Badge>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => toggleExpanded(deal.id)}
-                                        className="h-7 w-7 p-0 ml-1"
-                                      >
-                                        {isExpanded ? (
-                                          <ChevronDown className="h-4 w-4" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4" />
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  
-                                  {deal.description && (
-                                    <p className="text-sm text-slate-600 mt-1 line-clamp-2">
-                                      {deal.description}
-                                    </p>
-                                  )}
-                                  
-                                  {deal.companyName && (
-                                    <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
-                                      <Building2 className="h-3 w-3" />
-                                      <span>{deal.companyName}</span>
-                                    </div>
-                                  )}
-                                  
-                                  {isExpanded && (
-                                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
-                                      {deal.contact && (
-                                        <div className="flex items-center gap-1 text-xs text-slate-500">
-                                          <User className="h-3 w-3" />
-                                          <span>{deal.contact}</span>
-                                        </div>
-                                      )}
-                                      
-                                      {deal.value && (
-                                        <div className="flex items-center gap-1 text-xs text-slate-500">
-                                          <span className="font-medium text-green-600">
-                                            R$ {deal.value.toLocaleString()}
-                                          </span>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Confidential Information */}
-                                      <div className="bg-slate-50 rounded p-2">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <div className="flex items-center gap-1 text-xs font-medium text-slate-700">
-                                            <Lock className="h-3 w-3" />
-                                            <span>Informação Confidencial</span>
-                                          </div>
-                                          {!isClientView && (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleEditConfidential(deal.id, deal.confidential)}
-                                              className="h-5 w-5 p-0"
-                                            >
-                                              <PenSquare className="h-3 w-3" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                        
-                                        {editingConfidential === deal.id ? (
-                                          <div className="space-y-2">
-                                            <Textarea
-                                              value={tempConfidentialValue}
-                                              onChange={(e) => setTempConfidentialValue(e.target.value)}
-                                              placeholder="Informação confidencial..."
-                                              className="text-xs min-h-[60px]"
-                                            />
-                                            <div className="flex gap-1">
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => handleSaveConfidential(deal.id, stage.id)}
-                                                className="h-7 text-xs flex-1"
-                                              >
-                                                <Check className="h-3 w-3 mr-1" />
-                                                Salvar
-                                              </Button>
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={handleCancelEditConfidential}
-                                                className="h-7 text-xs flex-1"
-                                              >
-                                                <X className="h-3 w-3 mr-1" />
-                                                Cancelar
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <p className="text-xs text-slate-600">
-                                            {deal.confidential || "Nenhuma informação confidencial"}
-                                          </p>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Notes Section */}
-                                      <div>
-                                        <div className="flex items-center gap-1 mb-2">
-                                          <MessageSquare className="h-3 w-3" />
-                                          <span className="text-xs font-medium">Notas</span>
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                          {deal.notes && deal.notes.length > 0 ? (
-                                            deal.notes.map(note => (
-                                              <div key={note.id} className="bg-slate-50 rounded p-2">
-                                                <div className="flex justify-between">
-                                                  <p className="text-xs text-slate-600">{note.text}</p>
-                                                  {!isClientView && (
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => handleDeleteNote(deal.id, stage.id, note.id)}
-                                                      className="h-5 w-5 p-0 -mt-1 -mr-1"
-                                                    >
-                                                      <X className="h-3 w-3" />
-                                                    </Button>
-                                                  )}
-                                                </div>
-                                                <div className="flex items-center gap-1 mt-1">
-                                                  <Clock className="h-2 w-2 text-slate-400" />
-                                                  <span className="text-[10px] text-slate-400">
-                                                    {note.date} por {note.author}
-                                                  </span>
-                                                </div>
-                                              </div>
-                                            ))
-                                          ) : (
-                                            <p className="text-xs text-slate-400 italic">
-                                              Nenhuma nota
-                                            </p>
-                                          )}
-                                          
-                                          {!isClientView && (
-                                            <div className="pt-1">
-                                              <Textarea
-                                                value={newNote}
-                                                onChange={(e) => setNewNote(e.target.value)}
-                                                placeholder="Adicionar nota..."
-                                                className="text-xs min-h-[60px]"
-                                              />
-                                              <Button
-                                                size="sm"
-                                                onClick={() => handleAddNote(deal.id, stage.id)}
-                                                className="mt-2 h-7 text-xs w-full"
-                                              >
-                                                <Plus className="h-3 w-3 mr-1" />
-                                                Adicionar Nota
-                                              </Button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      
-                                      {!isClientView && (
-                                        <div className="flex gap-2 pt-2">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleEditCard(deal)}
-                                            className="flex-1 h-8"
-                                          >
-                                            <Edit className="h-3 w-3 mr-1" />
-                                            Editar
-                                          </Button>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleDeleteCard(deal.id)}
-                                            className="flex-1 h-8 text-red-600 hover:text-red-700"
-                                          >
-                                            <Trash2 className="h-3 w-3 mr-1" />
-                                            Excluir
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
+                      {stage.deals.map((deal, index) => renderDealCard(deal, index, stage))}
                       {provided.placeholder}
                     </div>
                   )}
@@ -1399,7 +1430,6 @@ const KanbanBoard = () => {
                     value={tempCardData.clientId || ""}
                     onValueChange={(value) => {
                       const selectedClient = clients.find(c => c.id === value);
-                      console.log('Cliente selecionado:', selectedClient);
                       setTempCardData({
                         ...tempCardData,
                         clientId: value,
