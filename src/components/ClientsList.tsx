@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,8 +62,7 @@ interface Client {
 }
 
 const ClientsList = () => {
-  // Dados iniciais dos clientes
-  const initialClients: Client[] = [
+  const [clients, setClients] = useState<Client[]>([
     {
       id: "1",
       name: "TechCorp Ltd",
@@ -147,49 +146,15 @@ const ClientsList = () => {
       dealsCount: 1,
       users: []
     }
-  ];
+  ]);
 
-  // Função para carregar dados do localStorage
-  const loadClientsFromStorage = (): Client[] => {
-    try {
-      const storedClients = localStorage.getItem('crm-clients');
-      if (storedClients) {
-        console.log('Loading clients from localStorage');
-        return JSON.parse(storedClients);
-      }
-    } catch (error) {
-      console.error('Error loading clients from localStorage:', error);
-    }
-    console.log('Using initial clients data');
-    return initialClients;
-  };
-
-  // Função para salvar dados no localStorage
-  const saveClientsToStorage = (clients: Client[]) => {
-    try {
-      localStorage.setItem('crm-clients', JSON.stringify(clients));
-      console.log('Clients saved to localStorage');
-    } catch (error) {
-      console.error('Error saving clients to localStorage:', error);
-    }
-  };
-
-  const [clients, setClients] = useState<Client[]>(loadClientsFromStorage);
-  
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [newUser, setNewUser] = useState<Partial<ClientUser>>({});
   const [isAddingUser, setIsAddingUser] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<Partial<Client>>({});
-  const [newClientData, setNewClientData] = useState<Partial<Client>>({});
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
-
-  // Salvar no localStorage sempre que os clientes mudarem
-  useEffect(() => {
-    saveClientsToStorage(clients);
-  }, [clients]);
 
   const toggleClientExpansion = (clientId: string) => {
     setExpandedClients(prev => {
@@ -204,7 +169,6 @@ const ClientsList = () => {
   };
 
   const handleViewDetails = (client: Client) => {
-    console.log('Opening edit dialog for client:', client.name);
     setSelectedClient(client);
     setEditFormData({
       name: client.name,
@@ -220,56 +184,17 @@ const ClientsList = () => {
   };
 
   const handleSaveClient = () => {
-    if (!selectedClient) {
-      console.log('No selected client to save');
-      return;
-    }
+    if (!selectedClient) return;
     
-    console.log('Saving client changes:', editFormData);
-    console.log('Selected client ID:', selectedClient.id);
-    
-    setClients(prev => {
-      const updatedClients = prev.map(client => {
-        if (client.id === selectedClient.id) {
-          const updatedClient = { ...client, ...editFormData };
-          console.log('Updated client:', updatedClient);
-          return updatedClient;
-        }
-        return client;
-      });
-      console.log('All clients after update:', updatedClients);
-      return updatedClients;
-    });
+    setClients(prev => prev.map(client => 
+      client.id === selectedClient.id 
+        ? { ...client, ...editFormData }
+        : client
+    ));
     
     setIsEditDialogOpen(false);
     setSelectedClient(null);
     setEditFormData({});
-  };
-
-  const handleAddClient = () => {
-    if (!newClientData.name || !newClientData.industry || !newClientData.contactEmail) {
-      console.log('Missing required fields for new client');
-      return;
-    }
-
-    const newClient: Client = {
-      id: `client-${Date.now()}`,
-      name: newClientData.name,
-      industry: newClientData.industry || '',
-      contactEmail: newClientData.contactEmail,
-      contactPhone: newClientData.contactPhone || '',
-      website: newClientData.website || '',
-      address: newClientData.address || '',
-      status: newClientData.status || 'prospect',
-      dealsCount: 0,
-      users: [],
-      avatar: newClientData.avatar
-    };
-
-    console.log('Adding new client:', newClient);
-    setClients(prev => [...prev, newClient]);
-    setIsAddDialogOpen(false);
-    setNewClientData({});
   };
 
   const handleAvatarUpload = () => {
@@ -281,20 +206,6 @@ const ClientsList = () => {
       if (file) {
         const imageUrl = URL.createObjectURL(file);
         setEditFormData(prev => ({ ...prev, avatar: imageUrl }));
-      }
-    };
-    input.click();
-  };
-
-  const handleNewAvatarUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const imageUrl = URL.createObjectURL(file);
-        setNewClientData(prev => ({ ...prev, avatar: imageUrl }));
       }
     };
     input.click();
@@ -354,17 +265,6 @@ const ClientsList = () => {
 
   return (
     <>
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-semibold">Lista de Clientes</h3>
-          <p className="text-sm text-muted-foreground">Gerencie seus clientes e usuários</p>
-        </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Cliente
-        </Button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {clients.map((client) => {
           const isExpanded = expandedClients.has(client.id);
@@ -617,10 +517,7 @@ const ClientsList = () => {
                 <label className="text-sm font-medium">Nome</label>
                 <Input
                   value={editFormData.name || ""}
-                  onChange={(e) => {
-                    console.log('Changing name to:', e.target.value);
-                    setEditFormData(prev => ({ ...prev, name: e.target.value }));
-                  }}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               
@@ -684,127 +581,7 @@ const ClientsList = () => {
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setIsEditDialogOpen(false);
-                  setSelectedClient(null);
-                  setEditFormData({});
-                }}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Novo Cliente</DialogTitle>
-            <DialogDescription>
-              Adicione um novo cliente ao sistema
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {/* Avatar Section */}
-            <div className="flex flex-col items-center gap-2">
-              <Avatar className="w-20 h-20">
-                {newClientData.avatar ? (
-                  <AvatarImage src={newClientData.avatar} alt={newClientData.name} />
-                ) : (
-                  <AvatarFallback className="bg-blue-100 text-blue-600 text-lg">
-                    {newClientData.name?.split(' ').map(n => n[0]).join('') || 'NC'}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <Button variant="outline" size="sm" onClick={handleNewAvatarUpload}>
-                <Camera className="w-4 h-4 mr-2" />
-                Adicionar Avatar
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Nome *</label>
-                <Input
-                  value={newClientData.name || ""}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Nome do cliente"
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Indústria *</label>
-                <Input
-                  value={newClientData.industry || ""}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, industry: e.target.value }))}
-                  placeholder="Tecnologia, Fintech, etc."
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Email *</label>
-                <Input
-                  value={newClientData.contactEmail || ""}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                  placeholder="contato@empresa.com"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Telefone</label>
-                <Input
-                  value={newClientData.contactPhone || ""}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, contactPhone: e.target.value }))}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Status</label>
-                <select
-                  value={newClientData.status || "prospect"}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, status: e.target.value as "active" | "inactive" | "prospect" }))}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="prospect">Prospect</option>
-                  <option value="active">Ativo</option>
-                  <option value="inactive">Inativo</option>
-                </select>
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Website</label>
-                <Input
-                  value={newClientData.website || ""}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, website: e.target.value }))}
-                  placeholder="www.empresa.com"
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Endereço</label>
-                <Input
-                  value={newClientData.address || ""}
-                  onChange={(e) => setNewClientData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Cidade, Estado"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2 pt-4">
-              <Button onClick={handleAddClient} className="flex-1">
-                Criar Cliente
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsAddDialogOpen(false);
-                  setNewClientData({});
-                }}
+                onClick={() => setIsEditDialogOpen(false)}
                 className="flex-1"
               >
                 Cancelar

@@ -56,7 +56,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -99,7 +99,7 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className={`grid w-full ${isClientView ? 'grid-cols-3' : 'grid-cols-6'} lg:w-fit`}>
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
