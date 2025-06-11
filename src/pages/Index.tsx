@@ -17,15 +17,13 @@ import {
   Bell,
   Search,
   Plus,
-  LogOut,
-  User
+  LogOut
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import KanbanBoard from "@/components/KanbanBoard";
 import ClientsList from "@/components/ClientsList";
 import TasksList from "@/components/TasksList";
 import AIInsights from "@/components/AIInsights";
-import CompanyUserManager from "@/components/CompanyUserManager";
 import KanbanConfigPanel from "@/components/KanbanConfigPanel";
 
 const Index = () => {
@@ -47,7 +45,7 @@ const Index = () => {
     if (isClientView) {
       return ["dashboard", "kanban", "tasks"];
     }
-    return ["dashboard", "kanban", "clients", "users", "tasks", "settings"];
+    return ["dashboard", "kanban", "clients", "tasks", "settings"];
   };
 
   const availableTabs = getAvailableTabs();
@@ -101,7 +99,7 @@ const Index = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full ${isClientView ? 'grid-cols-3' : 'grid-cols-6'} lg:w-fit`}>
+          <TabsList className={`grid w-full ${isClientView ? 'grid-cols-3' : 'grid-cols-5'} lg:w-fit`}>
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Dashboard
@@ -114,12 +112,6 @@ const Index = () => {
               <TabsTrigger value="clients" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Clientes
-              </TabsTrigger>
-            )}
-            {!isClientView && (
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Usuários
               </TabsTrigger>
             )}
             <TabsTrigger value="tasks" className="flex items-center gap-2">
@@ -320,13 +312,6 @@ const Index = () => {
             </div>
             <KanbanBoard />
           </TabsContent>
-
-          {/* Users Tab */}
-          {!isClientView && (
-            <TabsContent value="users" className="space-y-6">
-              <CompanyUserManager />
-            </TabsContent>
-          )}
 
           {/* Clients Tab */}
           {!isClientView && (
