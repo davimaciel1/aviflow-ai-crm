@@ -17,6 +17,7 @@ const Login = () => {
   const [success, setSuccess] = useState("");
   const [showSignup, setShowSignup] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const { login, isLoading } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -106,27 +107,43 @@ const Login = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setIsResetting(true);
 
     if (!email) {
       setError("Por favor, digite seu email");
+      setIsResetting(false);
       return;
     }
 
     try {
+      console.log('Enviando email de recuperação para:', email);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/`
+        redirectTo: `${window.location.origin}/reset-password`
       });
 
       if (error) {
-        setError("Erro ao enviar email de recuperação. Tente novamente.");
+        console.error('Erro ao enviar email:', error);
+        setError(`Erro ao enviar email: ${error.message}`);
+        setIsResetting(false);
         return;
       }
 
-      setSuccess("Email de recuperação enviado! Verifique sua caixa de entrada.");
-      setShowForgotPassword(false);
+      console.log('Email de recuperação enviado com sucesso');
+      setSuccess("Email de recuperação enviado! Verifique sua caixa de entrada e spam.");
+      setEmail("");
+      
+      // Não fechar o modal imediatamente, deixar o usuário ver a mensagem
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setSuccess("");
+      }, 5000);
+
     } catch (error) {
-      console.error('Password reset error:', error);
-      setError("Erro inesperado. Tente novamente.");
+      console.error('Erro inesperado:', error);
+      setError("Erro inesperado. Verifique sua conexão e tente novamente.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -165,6 +182,7 @@ const Login = () => {
                   placeholder="seu@email.com"
                   required
                   autoComplete="email"
+                  disabled={isResetting}
                 />
               </div>
               
@@ -180,19 +198,31 @@ const Login = () => {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Enviando..." : "Enviar Email de Recuperação"}
+              <Button type="submit" className="w-full" disabled={isResetting}>
+                {isResetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isResetting ? "Enviando..." : "Enviar Email de Recuperação"}
               </Button>
 
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setShowForgotPassword(false)}
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setError("");
+                    setSuccess("");
+                  }}
                   className="text-sm text-blue-600 hover:underline"
+                  disabled={isResetting}
                 >
                   Voltar ao login
                 </button>
+              </div>
+
+              <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <p className="text-xs text-amber-800">
+                  <strong>Dica:</strong> Se não receber o email, verifique sua pasta de spam. 
+                  O email pode levar alguns minutos para chegar.
+                </p>
               </div>
             </form>
           ) : !showSignup ? (
