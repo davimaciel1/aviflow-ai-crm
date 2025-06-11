@@ -429,7 +429,7 @@ const KanbanBoard = () => {
             <div className="bg-slate-100 rounded-md p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-800">{stage.name}</h3>
-                <Badge variant="secondary">{getTotalDealsInStage(stage.id)} deals</Badge>
+                <Badge variant="secondary">{stage.deals.length} deals</Badge>
               </div>
 
               <div className="space-y-3">
@@ -494,9 +494,9 @@ const KanbanBoard = () => {
                           </div>
 
                           <div className="flex items-center justify-between text-xs text-slate-600">
-                            <span>{getFormattedValue(deal.value)}</span>
+                            <span>{deal.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                             <Badge variant="outline">
-                              {getStageName(deal.stageId)}
+                              {stage.name}
                             </Badge>
                           </div>
                         </CardContent>
@@ -593,7 +593,7 @@ const KanbanBoard = () => {
               <Input
                 type="number"
                 value={newCardData.value || ""}
-                onChange={(e) => setNewCardData(prev => ({ ...prev, value: parseFloat(e.target.value) })}
+                onChange={(e) => setNewCardData(prev => ({ ...prev, value: parseFloat(e.target.value) }))}
                 placeholder="Valor estimado do negócio"
               />
             </div>
@@ -688,7 +688,7 @@ const KanbanBoard = () => {
               <Input
                 type="number"
                 value={tempCardData.value || ""}
-                onChange={(e) => setTempCardData(prev => ({ ...prev, value: parseFloat(e.target.value) })}
+                onChange={(e) => setTempCardData(prev => ({ ...prev, value: parseFloat(e.target.value) }))}
                 placeholder="Valor estimado do negócio"
               />
             </div>
