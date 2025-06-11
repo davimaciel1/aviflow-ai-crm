@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   EyeOff
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
 const KanbanBoard = () => {
   const { user } = useAuth();
@@ -23,27 +25,8 @@ const KanbanBoard = () => {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [showConfidential, setShowConfidential] = useState<Set<string>>(new Set());
 
-  const toggleCard = (cardId: string) => {
-    const newExpanded = new Set(expandedCards);
-    if (newExpanded.has(cardId)) {
-      newExpanded.delete(cardId);
-    } else {
-      newExpanded.add(cardId);
-    }
-    setExpandedCards(newExpanded);
-  };
-
-  const toggleConfidential = (cardId: string) => {
-    const newShowConfidential = new Set(showConfidential);
-    if (newShowConfidential.has(cardId)) {
-      newShowConfidential.delete(cardId);
-    } else {
-      newShowConfidential.add(cardId);
-    }
-    setShowConfidential(newShowConfidential);
-  };
-
-  const deals = [
+  // Initialize deals state
+  const [deals, setDeals] = useState([
     {
       id: '1',
       title: 'Desenvolvimento de App Mobile',
@@ -129,9 +112,9 @@ const KanbanBoard = () => {
       competitors: 'Ricardo Eletro',
       notes: 'Objetivo de aumentar o tráfego e as conversões no site.'
     }
-  ];
+  ]);
 
-  const clientDeals = [
+  const [clientDeals, setClientDeals] = useState([
     {
       id: '6',
       title: 'Otimização de SEO',
@@ -183,7 +166,27 @@ const KanbanBoard = () => {
       competitors: 'Nenhum',
       notes: 'Cliente busca fortalecer a presença online e engajar o público.'
     }
-  ];
+  ]);
+
+  const toggleCard = (cardId: string) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(cardId)) {
+      newExpanded.delete(cardId);
+    } else {
+      newExpanded.add(cardId);
+    }
+    setExpandedCards(newExpanded);
+  };
+
+  const toggleConfidential = (cardId: string) => {
+    const newShowConfidential = new Set(showConfidential);
+    if (newShowConfidential.has(cardId)) {
+      newShowConfidential.delete(cardId);
+    } else {
+      newShowConfidential.add(cardId);
+    }
+    setShowConfidential(newShowConfidential);
+  };
 
   const stages = [
     {
@@ -225,114 +228,164 @@ const KanbanBoard = () => {
     return deals.filter(deal => deal.stage === stageId);
   };
 
-  const renderDealCard = (deal: any) => {
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+    
+    if (source.droppableId === destination.droppableId) return;
+
+    console.log('Moving deal:', draggableId, 'from', source.droppableId, 'to', destination.droppableId);
+
+    if (isClientView) {
+      const updatedDeals = clientDeals.map(deal => 
+        deal.id === draggableId 
+          ? { ...deal, stage: destination.droppableId }
+          : deal
+      );
+      setClientDeals(updatedDeals);
+    } else {
+      const updatedDeals = deals.map(deal => 
+        deal.id === draggableId 
+          ? { ...deal, stage: destination.droppableId }
+          : deal
+      );
+      setDeals(updatedDeals);
+    }
+  };
+
+  const renderDealCard = (deal: any, index: number) => {
     const isExpanded = expandedCards.has(deal.id);
     const showConfidentialInfo = showConfidential.has(deal.id);
 
     return (
-      <Card key={deal.id} className="mb-3 hover:shadow-md transition-shadow cursor-pointer">
-        <CardHeader 
-          className="pb-2 px-3 py-2"
-          onClick={() => toggleCard(deal.id)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <Avatar className="h-6 w-6 flex-shrink-0">
-                <AvatarImage src={deal.avatar} />
-                <AvatarFallback className="text-xs">
-                  {deal.client.split(' ').map((n: string) => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <CardTitle className="text-sm font-medium truncate">{deal.title}</CardTitle>
-                <p className="text-xs text-muted-foreground truncate">{deal.company}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Badge variant="secondary" className="text-xs px-1 py-0">
-                {deal.value}
-              </Badge>
-              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground">{deal.client}</div>
-        </CardHeader>
-        
-        {isExpanded && (
-          <CardContent className="pt-0 px-3 pb-3">
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                {deal.description}
-              </p>
-              
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs">{deal.phone}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs">{deal.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs">Próximo contato: {deal.nextContact}</span>
-                </div>
-              </div>
-
-              {!isClientView && (
-                <div className="pt-2 border-t">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium">Informações Confidenciais</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleConfidential(deal.id);
-                      }}
-                      className="h-6 w-6 p-0"
-                    >
-                      {showConfidentialInfo ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                  
-                  {showConfidentialInfo && (
-                    <div className="space-y-1">
-                      <p className="text-xs"><strong>Orçamento:</strong> {deal.budget}</p>
-                      <p className="text-xs"><strong>Decisor:</strong> {deal.decisionMaker}</p>
-                      <p className="text-xs"><strong>Concorrentes:</strong> {deal.competitors}</p>
-                      <p className="text-xs"><strong>Anotações:</strong> {deal.notes}</p>
+      <Draggable key={deal.id} draggableId={deal.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={`mb-3 ${snapshot.isDragging ? 'rotate-3 scale-105' : ''} transition-transform`}
+          >
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader 
+                className="pb-2 px-3 py-2"
+                onClick={() => toggleCard(deal.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar className="h-6 w-6 flex-shrink-0">
+                      <AvatarImage src={deal.avatar} />
+                      <AvatarFallback className="text-xs">
+                        {deal.client.split(' ').map((n: string) => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm font-medium truncate">{deal.title}</CardTitle>
+                      <p className="text-xs text-muted-foreground truncate">{deal.company}</p>
                     </div>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Badge variant="secondary" className="text-xs px-1 py-0">
+                      {deal.value}
+                    </Badge>
+                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  </div>
                 </div>
+                <div className="text-xs text-muted-foreground">{deal.client}</div>
+              </CardHeader>
+              
+              {isExpanded && (
+                <CardContent className="pt-0 px-3 pb-3">
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {deal.description}
+                    </p>
+                    
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs">{deal.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs">{deal.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs">Próximo contato: {deal.nextContact}</span>
+                      </div>
+                    </div>
+
+                    {!isClientView && (
+                      <div className="pt-2 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium">Informações Confidenciais</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleConfidential(deal.id);
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            {showConfidentialInfo ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                        
+                        {showConfidentialInfo && (
+                          <div className="space-y-1">
+                            <p className="text-xs"><strong>Orçamento:</strong> {deal.budget}</p>
+                            <p className="text-xs"><strong>Decisor:</strong> {deal.decisionMaker}</p>
+                            <p className="text-xs"><strong>Concorrentes:</strong> {deal.competitors}</p>
+                            <p className="text-xs"><strong>Anotações:</strong> {deal.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
               )}
-            </div>
-          </CardContent>
+            </Card>
+          </div>
         )}
-      </Card>
+      </Draggable>
     );
   };
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
-      {stages.map((stage) => (
-        <div key={stage.id} className="flex-shrink-0 w-64">
-          <div className={`rounded-lg p-3 ${stage.color} mb-3`}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-sm">{stage.title}</h3>
-              <Badge variant="secondary" className="text-xs">
-                {stage.count}
-              </Badge>
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div className="flex gap-3 overflow-x-auto pb-4">
+        {stages.map((stage) => (
+          <div key={stage.id} className="flex-shrink-0 w-48">
+            <div className={`rounded-lg p-3 ${stage.color} mb-3`}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">{stage.title}</h3>
+                <Badge variant="secondary" className="text-xs">
+                  {getDealsForStage(stage.id).length}
+                </Badge>
+              </div>
             </div>
+            
+            <Droppable droppableId={stage.id}>
+              {(provided, snapshot) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className={`space-y-2 max-h-96 overflow-y-auto min-h-32 p-2 rounded-lg ${
+                    snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''
+                  } transition-colors`}
+                >
+                  {getDealsForStage(stage.id).map((deal, index) => renderDealCard(deal, index))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
           </div>
-          
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {getDealsForStage(stage.id).map(renderDealCard)}
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </DragDropContext>
   );
 };
 
