@@ -697,9 +697,16 @@ const KanbanBoard = () => {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 ${
+            className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 kanban-card ${
               snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
             }`}
+            style={{
+              width: 'var(--kanban-card-width, 320px)',
+              minHeight: 'var(--kanban-card-min-height, 150px)',
+              maxHeight: 'var(--kanban-card-max-height, 600px)',
+              marginBottom: 'var(--kanban-card-spacing, 12px)',
+              ...provided.draggableProps.style
+            }}
           >
             <Collapsible open={isExpanded} onOpenChange={() => toggleCardExpansion(deal.id)}>
               <CardContent className="p-3">
@@ -886,7 +893,10 @@ const KanbanBoard = () => {
                     <div 
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`flex-shrink-0 w-80 ${snapshot.isDragging ? 'transform rotate-1' : ''}`}
+                      className={`flex-shrink-0 kanban-column ${snapshot.isDragging ? 'transform rotate-1' : ''}`}
+                      style={{
+                        width: 'var(--kanban-column-width, 320px)'
+                      }}
                     >
                       <div className={`${column.color} rounded-xl p-4 min-h-full shadow-sm border border-slate-200`}>
                         <div className="flex justify-between items-center mb-4">
@@ -993,7 +1003,7 @@ const KanbanBoard = () => {
               
               {/* Add Stage Button */}
               {!isClientView && (
-                <div className="flex-shrink-0 w-80">
+                <div className="flex-shrink-0" style={{ width: 'var(--kanban-column-width, 320px)' }}>
                   {addingStage ? (
                     <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px]">
                       <Input

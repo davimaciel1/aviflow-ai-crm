@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,6 +26,7 @@ import ClientsList from "@/components/ClientsList";
 import TasksList from "@/components/TasksList";
 import AIInsights from "@/components/AIInsights";
 import CompanyUserManager from "@/components/CompanyUserManager";
+import KanbanConfigPanel from "@/components/KanbanConfigPanel";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -372,21 +372,35 @@ const Index = () => {
                 <h2 className="text-3xl font-bold text-slate-900">Configurações</h2>
                 <p className="text-slate-600">Configure seu CRM</p>
               </div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configurações do Sistema</CardTitle>
-                  <CardDescription>
-                    Personalize o comportamento do seu CRM
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Em desenvolvimento - configurações avançadas em breve
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              
+              <Tabs defaultValue="kanban" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="kanban">Kanban</TabsTrigger>
+                  <TabsTrigger value="system">Sistema</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="kanban">
+                  <KanbanConfigPanel />
+                </TabsContent>
+                
+                <TabsContent value="system">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Configurações do Sistema</CardTitle>
+                      <CardDescription>
+                        Personalize o comportamento do seu CRM
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Em desenvolvimento - configurações avançadas em breve
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           )}
         </Tabs>

@@ -1,163 +1,125 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
-  Building, 
-  Mail, 
+  Building2, 
   Phone, 
-  Globe, 
+  Mail, 
   MapPin, 
-  MoreHorizontal,
+  Calendar, 
+  DollarSign,
+  Users,
+  ChevronDown,
+  ChevronRight,
   Edit,
   Trash2,
-  Eye,
   Plus,
-  Users,
   Check,
-  X,
-  Camera,
-  Upload,
-  ChevronDown,
-  ChevronUp
+  X
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
-interface ClientUser {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-  role: "admin" | "user";
-}
 
 interface Client {
   id: string;
   name: string;
-  industry: string;
-  contactEmail: string;
-  contactPhone: string;
-  website: string;
-  address: string;
+  company: string;
+  email: string;
+  phone: string;
   status: "active" | "inactive" | "prospect";
-  dealsCount: number;
-  users: ClientUser[];
+  totalValue: number;
+  projectsCount: number;
+  lastContact: string;
+  address?: string;
+  notes?: string;
   avatar?: string;
 }
 
 const ClientsList = () => {
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: "1",
-      name: "TechCorp Ltd",
-      industry: "Tecnologia",
-      contactEmail: "contato@techcorp.com",
-      contactPhone: "(11) 99999-9999",
-      website: "www.techcorp.com",
-      address: "São Paulo, SP",
-      status: "active",
-      dealsCount: 3,
-      users: [
-        {
-          id: "u1",
-          name: "João Silva",
-          email: "joao@techcorp.com",
-          password: "123456",
-          role: "admin"
-        },
-        {
-          id: "u2",
-          name: "Ana Costa",
-          email: "ana@techcorp.com",
-          password: "123456",
-          role: "user"
-        }
-      ]
-    },
-    {
-      id: "2",
-      name: "StartupXYZ",
-      industry: "Fintech",
-      contactEmail: "hello@startupxyz.com",
-      contactPhone: "(11) 88888-8888",
-      website: "www.startupxyz.com",
-      address: "Rio de Janeiro, RJ",
-      status: "active",
-      dealsCount: 2,
-      users: [
-        {
-          id: "u3",
-          name: "Maria Santos",
-          email: "maria@startupxyz.com",
-          password: "123456",
-          role: "admin"
-        }
-      ]
-    },
-    {
-      id: "3",
-      name: "ABC Corporation",
-      industry: "Varejo",
-      contactEmail: "vendas@abccorp.com",
-      contactPhone: "(11) 77777-7777",
-      website: "www.abccorp.com",
-      address: "Belo Horizonte, MG",
-      status: "prospect",
-      dealsCount: 1,
-      users: []
-    },
-    {
-      id: "4",
-      name: "RetailPlus",
-      industry: "E-commerce",
-      contactEmail: "comercial@retailplus.com",
-      contactPhone: "(11) 66666-6666",
-      website: "www.retailplus.com",
-      address: "Curitiba, PR",
-      status: "active",
-      dealsCount: 4,
-      users: []
-    },
-    {
-      id: "5",
-      name: "DataCorp",
-      industry: "Analytics",
-      contactEmail: "info@datacorp.com",
-      contactPhone: "(11) 55555-5555",
-      website: "www.datacorp.com",
-      address: "Porto Alegre, RS",
-      status: "inactive",
-      dealsCount: 1,
-      users: []
+  const [clients, setClients] = useState<Client[]>([]);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [editingClient, setEditingClient] = useState<string | null>(null);
+  const [tempClientData, setTempClientData] = useState<Partial<Client>>({});
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newClientData, setNewClientData] = useState<Partial<Client>>({
+    status: "prospect"
+  });
+
+  // Carregar dados do localStorage
+  useEffect(() => {
+    const savedClients = localStorage.getItem('daviflow_clients');
+    if (savedClients) {
+      try {
+        setClients(JSON.parse(savedClients));
+      } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+        loadDefaultClients();
+      }
+    } else {
+      loadDefaultClients();
     }
-  ]);
+  }, []);
 
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [editingUser, setEditingUser] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState<Partial<ClientUser>>({});
-  const [isAddingUser, setIsAddingUser] = useState<string | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
-  const [editFormData, setEditFormData] = useState<Partial<Client>>({});
-  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  // Salvar no localStorage sempre que clients mudar
+  useEffect(() => {
+    if (clients.length > 0) {
+      localStorage.setItem('daviflow_clients', JSON.stringify(clients));
+    }
+  }, [clients]);
 
-  const toggleClientExpansion = (clientId: string) => {
-    setExpandedClients(prev => {
+  const loadDefaultClients = () => {
+    const defaultClients: Client[] = [
+      {
+        id: "1",
+        name: "João Silva",
+        company: "TechCorp Ltd",
+        email: "joao@techcorp.com",
+        phone: "(11) 99999-0001",
+        status: "active",
+        totalValue: 45000,
+        projectsCount: 3,
+        lastContact: "2024-06-08",
+        address: "São Paulo, SP",
+        notes: "Cliente premium, sempre pontual nos pagamentos."
+      },
+      {
+        id: "2",
+        name: "Maria Santos",
+        company: "StartupXYZ",
+        email: "maria@startupxyz.com",
+        phone: "(11) 99999-0002",
+        status: "active",
+        totalValue: 28000,
+        projectsCount: 2,
+        lastContact: "2024-06-09",
+        address: "Rio de Janeiro, RJ",
+        notes: "Startup em crescimento, muito engajada no projeto."
+      },
+      {
+        id: "3",
+        name: "Pedro Oliveira",
+        company: "ABC Corporation",
+        email: "pedro@abccorp.com",
+        phone: "(11) 99999-0003",
+        status: "prospect",
+        totalValue: 0,
+        projectsCount: 0,
+        lastContact: "2024-06-10",
+        address: "Belo Horizonte, MG",
+        notes: "Interessado em consultoria digital."
+      }
+    ];
+    setClients(defaultClients);
+  };
+
+  const toggleExpanded = (clientId: string) => {
+    setExpandedCards(prev => {
       const newSet = new Set(prev);
       if (newSet.has(clientId)) {
         newSet.delete(clientId);
@@ -168,88 +130,65 @@ const ClientsList = () => {
     });
   };
 
-  const handleViewDetails = (client: Client) => {
-    setSelectedClient(client);
-    setEditFormData({
-      name: client.name,
-      industry: client.industry,
-      contactEmail: client.contactEmail,
-      contactPhone: client.contactPhone,
-      website: client.website,
-      address: client.address,
-      status: client.status,
-      avatar: client.avatar
-    });
-    setIsEditDialogOpen(true);
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client.id);
+    setTempClientData({ ...client });
   };
 
   const handleSaveClient = () => {
-    if (!selectedClient) return;
-    
+    if (!editingClient || !tempClientData) return;
+
     setClients(prev => prev.map(client => 
-      client.id === selectedClient.id 
-        ? { ...client, ...editFormData }
+      client.id === editingClient 
+        ? { ...client, ...tempClientData } 
         : client
     ));
-    
-    setIsEditDialogOpen(false);
-    setSelectedClient(null);
-    setEditFormData({});
+
+    setEditingClient(null);
+    setTempClientData({});
   };
 
-  const handleAvatarUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const imageUrl = URL.createObjectURL(file);
-        setEditFormData(prev => ({ ...prev, avatar: imageUrl }));
-      }
-    };
-    input.click();
+  const handleCancelEdit = () => {
+    setEditingClient(null);
+    setTempClientData({});
   };
 
-  const handleAddUser = (clientId: string) => {
-    if (newUser.name && newUser.email && newUser.password) {
-      setClients(prev => prev.map(client => {
-        if (client.id === clientId) {
-          return {
-            ...client,
-            users: [...client.users, {
-              id: `u${Date.now()}`,
-              name: newUser.name!,
-              email: newUser.email!,
-              password: newUser.password!,
-              role: newUser.role as "admin" | "user" || "user"
-            }]
-          };
-        }
-        return client;
-      }));
-      setNewUser({});
-      setIsAddingUser(null);
+  const handleDeleteClient = (clientId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este cliente?")) {
+      setClients(prev => prev.filter(client => client.id !== clientId));
     }
   };
 
-  const handleDeleteUser = (clientId: string, userId: string) => {
-    setClients(prev => prev.map(client => {
-      if (client.id === clientId) {
-        return {
-          ...client,
-          users: client.users.filter(user => user.id !== userId)
-        };
-      }
-      return client;
-    }));
+  const handleCreateClient = () => {
+    if (!newClientData.name || !newClientData.company || !newClientData.email) {
+      alert("Por favor, preencha pelo menos o nome, empresa e email.");
+      return;
+    }
+
+    const newClient: Client = {
+      id: Date.now().toString(),
+      name: newClientData.name || "",
+      company: newClientData.company || "",
+      email: newClientData.email || "",
+      phone: newClientData.phone || "",
+      status: (newClientData.status as "active" | "inactive" | "prospect") || "prospect",
+      totalValue: newClientData.totalValue || 0,
+      projectsCount: newClientData.projectsCount || 0,
+      lastContact: new Date().toISOString().split('T')[0],
+      address: newClientData.address || "",
+      notes: newClientData.notes || ""
+    };
+
+    setClients(prev => [...prev, newClient]);
+    setNewClientData({ status: "prospect" });
+    setIsCreateDialogOpen(false);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-green-100 text-green-800";
-      case "inactive": return "bg-gray-100 text-gray-800";
-      case "prospect": return "bg-blue-100 text-blue-800";
+      case "inactive": return "bg-red-100 text-red-800";
+      case "prospect": return "bg-yellow-100 text-yellow-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -264,333 +203,296 @@ const ClientsList = () => {
   };
 
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {clients.map((client) => {
-          const isExpanded = expandedClients.has(client.id);
-          
-          return (
-            <Collapsible
-              key={client.id}
-              open={isExpanded}
-              onOpenChange={() => toggleClientExpansion(client.id)}
-            >
-              <Card className="hover:shadow-lg transition-shadow">
-                <CollapsibleTrigger asChild>
-                  <CardHeader className="pb-3 cursor-pointer">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          {client.avatar ? (
-                            <AvatarImage src={client.avatar} alt={client.name} />
-                          ) : (
-                            <AvatarFallback className="bg-blue-100 text-blue-600">
-                              {client.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{client.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">{client.industry}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => handleViewDetails(client)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              Visualizar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleViewDetails(client)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                    
-                    {/* Informações sempre visíveis */}
-                    <div className="flex justify-between items-center mt-2">
-                      <Badge className={getStatusColor(client.status)}>
-                        {getStatusLabel(client.status)}
-                      </Badge>
-                      <div className="text-right">
-                        <div className="text-xs text-muted-foreground">{client.dealsCount} deals</div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent>
-                  <CardContent className="space-y-4 pt-0">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Mail className="w-4 h-4" />
-                        <span className="truncate">{client.contactEmail}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="w-4 h-4" />
-                        <span>{client.contactPhone}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Globe className="w-4 h-4" />
-                        <span className="truncate">{client.website}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="w-4 h-4" />
-                        <span>{client.address}</span>
-                      </div>
-                    </div>
-
-                    {/* Seção de Usuários */}
-                    <div className="pt-3 border-t border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1 text-sm font-medium">
-                          <Users className="w-4 h-4" />
-                          Usuários ({client.users.length})
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsAddingUser(client.id);
-                          }}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                      </div>
-
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {client.users.map((user) => (
-                          <div key={user.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
-                            <div className="flex-1">
-                              <div className="font-medium">{user.name}</div>
-                              <div className="text-muted-foreground">{user.email}</div>
-                              <div className="text-muted-foreground">Senha: {user.password}</div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
-                                {user.role}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteUser(client.id, user.id);
-                                }}
-                                className="h-5 w-5 p-0 text-red-600"
-                              >
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-
-                        {isAddingUser === client.id && (
-                          <div className="p-2 border border-gray-200 rounded space-y-2">
-                            <Input
-                              placeholder="Nome"
-                              value={newUser.name || ""}
-                              onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                              className="text-xs h-7"
-                            />
-                            <Input
-                              placeholder="Email"
-                              value={newUser.email || ""}
-                              onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                              className="text-xs h-7"
-                            />
-                            <Input
-                              placeholder="Senha"
-                              value={newUser.password || ""}
-                              onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                              className="text-xs h-7"
-                            />
-                            <div className="flex items-center gap-1">
-                              <select
-                                value={newUser.role || "user"}
-                                onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "user" }))}
-                                className="text-xs border rounded px-2 py-1 flex-1"
-                              >
-                                <option value="user">Usuário</option>
-                                <option value="admin">Admin</option>
-                              </select>
-                              <Button
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddUser(client.id);
-                                }}
-                                className="h-6 w-6 p-0"
-                              >
-                                <Check className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsAddingUser(null);
-                                }}
-                                className="h-6 w-6 p-0"
-                              >
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="pt-3 border-t border-slate-200">
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(client);
-                        }}
-                      >
-                        <Building className="w-4 h-4 mr-2" />
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          );
-        })}
-      </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Cliente</DialogTitle>
-            <DialogDescription>
-              Atualize as informações do cliente
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {/* Avatar Section */}
-            <div className="flex flex-col items-center gap-2">
-              <Avatar className="w-20 h-20">
-                {editFormData.avatar ? (
-                  <AvatarImage src={editFormData.avatar} alt={editFormData.name} />
-                ) : (
-                  <AvatarFallback className="bg-blue-100 text-blue-600 text-lg">
-                    {editFormData.name?.split(' ').map(n => n[0]).join('') || 'CL'}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <Button variant="outline" size="sm" onClick={handleAvatarUpload}>
-                <Camera className="w-4 h-4 mr-2" />
-                Alterar Avatar
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Nome</label>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900">Clientes</h2>
+          <p className="text-slate-600">Gerencie sua base de clientes</p>
+        </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Cliente
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Criar Novo Cliente</DialogTitle>
+              <DialogDescription>
+                Preencha as informações do novo cliente
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Nome *</label>
                 <Input
-                  value={editFormData.name || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Indústria</label>
-                <Input
-                  value={editFormData.industry || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, industry: e.target.value }))}
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  value={editFormData.contactEmail || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
+                  value={newClientData.name || ""}
+                  onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Nome do cliente"
                 />
               </div>
               
               <div>
-                <label className="text-sm font-medium">Telefone</label>
+                <label className="text-sm font-medium mb-2 block">Empresa *</label>
                 <Input
-                  value={editFormData.contactPhone || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
+                  value={newClientData.company || ""}
+                  onChange={(e) => setNewClientData(prev => ({ ...prev, company: e.target.value }))}
+                  placeholder="Nome da empresa"
                 />
               </div>
               
               <div>
-                <label className="text-sm font-medium">Status</label>
-                <select
-                  value={editFormData.status || "active"}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value as "active" | "inactive" | "prospect" }))}
-                  className="w-full border rounded px-3 py-2"
+                <label className="text-sm font-medium mb-2 block">Email *</label>
+                <Input
+                  type="email"
+                  value={newClientData.email || ""}
+                  onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@empresa.com"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Telefone</label>
+                <Input
+                  value={newClientData.phone || ""}
+                  onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select
+                  value={newClientData.status || "prospect"}
+                  onValueChange={(value) => setNewClientData(prev => ({ ...prev, status: value }))}
                 >
-                  <option value="active">Ativo</option>
-                  <option value="inactive">Inativo</option>
-                  <option value="prospect">Prospect</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Website</label>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Endereço</label>
                 <Input
-                  value={editFormData.website || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, website: e.target.value }))}
+                  value={newClientData.address || ""}
+                  onChange={(e) => setNewClientData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Cidade, Estado"
                 />
               </div>
               
-              <div className="col-span-2">
-                <label className="text-sm font-medium">Endereço</label>
-                <Input
-                  value={editFormData.address || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, address: e.target.value }))}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Observações</label>
+                <Textarea
+                  value={newClientData.notes || ""}
+                  onChange={(e) => setNewClientData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Observações sobre o cliente..."
+                  className="min-h-[80px]"
                 />
               </div>
             </div>
             
-            <div className="flex gap-2 pt-4">
-              <Button onClick={handleSaveClient} className="flex-1">
-                Salvar
+            <div className="flex gap-3 pt-4">
+              <Button onClick={handleCreateClient} className="flex-1">
+                <Check className="w-4 h-4 mr-2" />
+                Criar Cliente
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsEditDialogOpen(false)}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="flex-1">
+                <X className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {clients.map((client) => {
+          const isExpanded = expandedCards.has(client.id);
+          const isEditing = editingClient === client.id;
+
+          return (
+            <Card key={client.id} className="hover:shadow-lg transition-all duration-200">
+              <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(client.id)}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <Avatar>
+                        <AvatarImage src={client.avatar} />
+                        <AvatarFallback>
+                          {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+                          <div>
+                            <CardTitle className="text-lg">{client.name}</CardTitle>
+                            <CardDescription className="flex items-center gap-1">
+                              <Building2 className="w-3 h-3" />
+                              {client.company}
+                            </CardDescription>
+                          </div>
+                          <div className="ml-auto">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-slate-400" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                            )}
+                          </div>
+                        </CollapsibleTrigger>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-2">
+                    <Badge className={getStatusColor(client.status)}>
+                      {getStatusLabel(client.status)}
+                    </Badge>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditClient(client)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClient(client.id)}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <Input
+                          value={tempClientData.name || ""}
+                          onChange={(e) => setTempClientData(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Nome"
+                        />
+                        <Input
+                          value={tempClientData.company || ""}
+                          onChange={(e) => setTempClientData(prev => ({ ...prev, company: e.target.value }))}
+                          placeholder="Empresa"
+                        />
+                        <Input
+                          value={tempClientData.email || ""}
+                          onChange={(e) => setTempClientData(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="Email"
+                        />
+                        <Input
+                          value={tempClientData.phone || ""}
+                          onChange={(e) => setTempClientData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="Telefone"
+                        />
+                        <Select
+                          value={tempClientData.status || "prospect"}
+                          onValueChange={(value) => setTempClientData(prev => ({ ...prev, status: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="prospect">Prospect</SelectItem>
+                            <SelectItem value="active">Ativo</SelectItem>
+                            <SelectItem value="inactive">Inativo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={tempClientData.address || ""}
+                          onChange={(e) => setTempClientData(prev => ({ ...prev, address: e.target.value }))}
+                          placeholder="Endereço"
+                        />
+                        <Textarea
+                          value={tempClientData.notes || ""}
+                          onChange={(e) => setTempClientData(prev => ({ ...prev, notes: e.target.value }))}
+                          placeholder="Observações"
+                          className="min-h-[60px]"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveClient}>
+                            <Check className="w-4 h-4 mr-1" />
+                            Salvar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                            <X className="w-4 h-4 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Mail className="w-4 h-4" />
+                          <span>{client.email}</span>
+                        </div>
+                        
+                        {client.phone && (
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Phone className="w-4 h-4" />
+                            <span>{client.phone}</span>
+                          </div>
+                        )}
+                        
+                        {client.address && (
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <MapPin className="w-4 h-4" />
+                            <span>{client.address}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Calendar className="w-4 h-4" />
+                          <span>Último contato: {new Date(client.lastContact).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-green-600 font-semibold">
+                              <DollarSign className="w-4 h-4" />
+                              <span>R$ {client.totalValue.toLocaleString()}</span>
+                            </div>
+                            <p className="text-xs text-slate-500">Valor Total</p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-blue-600 font-semibold">
+                              <Users className="w-4 h-4" />
+                              <span>{client.projectsCount}</span>
+                            </div>
+                            <p className="text-xs text-slate-500">Projetos</p>
+                          </div>
+                        </div>
+                        
+                        {client.notes && (
+                          <div className="mt-3 p-3 bg-slate-50 rounded-lg">
+                            <p className="text-sm text-slate-700">{client.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
