@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { 
@@ -796,61 +797,73 @@ const KanbanBoard = () => {
 
   return (
     <div className="space-y-4">
-      {/* Pipeline Selection */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex-1 flex items-center gap-2">
-          {pipelines.map(pipeline => (
-            <div key={pipeline.id} className="flex items-center">
-              {editingPipeline === pipeline.id ? (
-                <div className="flex items-center gap-1">
-                  <Input
-                    value={tempPipelineName}
-                    onChange={(e) => setTempPipelineName(e.target.value)}
-                    className="h-8 w-48"
-                  />
-                  <Button size="sm" variant="ghost" onClick={handleSavePipeline} className="h-8 w-8 p-0">
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingPipeline(null)} className="h-8 w-8 p-0">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Button
-                    key={pipeline.id}
-                    variant={selectedPipeline === pipeline.id ? "default" : "outline"}
-                    onClick={() => setSelectedPipeline(pipeline.id)}
-                    className="mr-1"
-                  >
-                    {pipeline.name}
-                  </Button>
-                  {!isClientView && (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditPipeline(pipeline.id, pipeline.name)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeletePipeline(pipeline.id)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+      {/* Header with Pipeline Selector and Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Pipeline Dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Pipeline:</label>
+            <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecione um pipeline" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map(pipeline => (
+                  <SelectItem key={pipeline.id} value={pipeline.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{pipeline.name}</span>
+                      {!isClientView && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                              <MoreHorizontal className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditPipeline(pipeline.id, pipeline.name)}>
+                              <Edit className="h-3 w-3 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeletePipeline(pipeline.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
-                  )}
-                </>
-              )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Pipeline Edit Mode */}
+          {editingPipeline && (
+            <div className="flex items-center gap-2">
+              <Input
+                value={tempPipelineName}
+                onChange={(e) => setTempPipelineName(e.target.value)}
+                className="h-8 w-48"
+                placeholder="Nome do pipeline"
+              />
+              <Button size="sm" variant="ghost" onClick={handleSavePipeline} className="h-8 w-8 p-0">
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditingPipeline(null)} className="h-8 w-8 p-0">
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          ))}
-          
-          {!isClientView && (
+          )}
+        </div>
+        
+        {/* Action Buttons */}
+        {!isClientView && (
+          <div className="flex gap-2">
+            {/* Add Pipeline Button */}
             <Dialog open={isAddPipelineDialogOpen} onOpenChange={setIsAddPipelineDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -885,11 +898,8 @@ const KanbanBoard = () => {
                 </div>
               </DialogContent>
             </Dialog>
-          )}
-        </div>
-        
-        {!isClientView && (
-          <div className="flex gap-2">
+
+            {/* Add Deal Button */}
             <Dialog open={isAddDealDialogOpen} onOpenChange={(open) => {
               console.log('Dialog state changed:', open);
               setIsAddDealDialogOpen(open);
