@@ -697,23 +697,23 @@ const KanbanBoard = () => {
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 ${
+            className={`mb-2 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 ${
               snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
             }`}
           >
             <Collapsible open={isExpanded} onOpenChange={() => toggleCardExpansion(deal.id)}>
-              <CardContent className="p-3">
+              <CardContent className="p-2">
                 {/* Header with title and expand/collapse button */}
                 <CollapsibleTrigger asChild>
-                  <div className="flex items-start justify-between gap-2 mb-2 w-full">
-                    <h3 className="font-medium text-sm leading-tight text-slate-900 flex-1 text-left">
+                  <div className="flex items-start justify-between gap-1 mb-1 w-full">
+                    <h3 className="font-medium text-xs leading-tight text-slate-900 flex-1 text-left">
                       {deal.title}
                     </h3>
                     <div className="flex items-center gap-1">
                       {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                        <ChevronDown className="w-3 h-3 text-slate-400" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                        <ChevronRight className="w-3 h-3 text-slate-400" />
                       )}
                       <Button
                         variant="ghost"
@@ -722,28 +722,28 @@ const KanbanBoard = () => {
                           e.stopPropagation();
                           handleEditCard(deal);
                         }}
-                        className="h-5 w-5 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-4 w-4 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <Edit className="w-3 h-3" />
+                        <Edit className="w-2.5 h-2.5" />
                       </Button>
                     </div>
                   </div>
                 </CollapsibleTrigger>
 
                 {/* Always visible company and contact info */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <Building className="w-3 h-3 text-slate-400" />
-                    <span className="font-medium">{deal.companyName}</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-xs text-slate-600">
+                    <Building className="w-2.5 h-2.5 text-slate-400" />
+                    <span className="font-medium truncate">{deal.companyName}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
-                      <User className="w-3 h-3 text-slate-400" />
-                      <span>{deal.contact}</span>
+                    <div className="flex items-center gap-1 text-xs text-slate-600 flex-1 min-w-0">
+                      <User className="w-2.5 h-2.5 text-slate-400" />
+                      <span className="truncate">{deal.contact}</span>
                     </div>
                     
-                    <Avatar className="w-6 h-6 border border-slate-200">
+                    <Avatar className="w-5 h-5 border border-slate-200 flex-shrink-0">
                       {deal.avatar ? (
                         <AvatarImage src={deal.avatar} alt={deal.companyName} />
                       ) : null}
@@ -755,7 +755,7 @@ const KanbanBoard = () => {
                 </div>
 
                 {/* Collapsible content */}
-                <CollapsibleContent className="space-y-3 mt-3">
+                <CollapsibleContent className="space-y-2 mt-2">
                   {/* Description */}
                   {deal.description && (
                     <p className="text-xs text-slate-600 leading-relaxed">
@@ -768,7 +768,7 @@ const KanbanBoard = () => {
                     <div className="bg-red-50 border border-red-200 rounded-md p-2">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1">
-                          <Shield className="w-3 h-3 text-red-600" />
+                          <Shield className="w-2.5 h-2.5 text-red-600" />
                           <span className="text-xs font-medium text-red-800">Confidencial</span>
                         </div>
                         {editingConfidential !== deal.id && (
@@ -779,15 +779,15 @@ const KanbanBoard = () => {
                               e.stopPropagation();
                               handleEditConfidential(deal.id, deal.confidentialInfo || "");
                             }}
-                            className="h-4 w-4 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
+                            className="h-3 w-3 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
                           >
-                            <Edit className="w-2.5 h-2.5" />
+                            <Edit className="w-2 h-2" />
                           </Button>
                         )}
                       </div>
                       
                       {editingConfidential === deal.id ? (
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                           <Textarea
                             value={tempConfidentialValue}
                             onChange={(e) => setTempConfidentialValue(e.target.value)}
@@ -802,7 +802,7 @@ const KanbanBoard = () => {
                                 e.stopPropagation();
                                 handleSaveConfidential(deal.id);
                               }}
-                              className="h-5 px-2 text-xs"
+                              className="h-4 px-2 text-xs"
                             >
                               <Check className="w-3 h-3" />
                             </Button>
@@ -813,7 +813,7 @@ const KanbanBoard = () => {
                                 e.stopPropagation();
                                 handleCancelConfidentialEdit();
                               }}
-                              className="h-5 px-2 text-xs"
+                              className="h-4 px-2 text-xs"
                             >
                               <X className="w-3 h-3" />
                             </Button>
@@ -827,9 +827,9 @@ const KanbanBoard = () => {
 
                   {/* Notes indicator */}
                   {deal.notes && deal.notes.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-3 h-3 text-blue-600" />
-                      <span className="text-xs text-blue-600 font-medium">{deal.notes.length} Anotações & Insights</span>
+                    <div className="flex items-center gap-1">
+                      <FileText className="w-2.5 h-2.5 text-blue-600" />
+                      <span className="text-xs text-blue-600 font-medium">{deal.notes.length} Anotações</span>
                     </div>
                   )}
                 </CollapsibleContent>
@@ -873,7 +873,7 @@ const KanbanBoard = () => {
             <div 
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className="flex gap-6 overflow-x-auto pb-6 min-h-[700px]"
+              className="flex gap-3 overflow-x-auto pb-6 min-h-[700px]"
             >
               {filteredColumns.map((column, index) => (
                 <Draggable 
@@ -886,29 +886,29 @@ const KanbanBoard = () => {
                     <div 
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`flex-shrink-0 w-80 ${snapshot.isDragging ? 'transform rotate-1' : ''}`}
+                      className={`flex-shrink-0 w-64 ${snapshot.isDragging ? 'transform rotate-1' : ''}`}
                     >
-                      <div className={`${column.color} rounded-xl p-4 min-h-full shadow-sm border border-slate-200`}>
-                        <div className="flex justify-between items-center mb-4">
-                          <div className="flex items-center gap-2 flex-1">
+                      <div className={`${column.color} rounded-xl p-3 min-h-full shadow-sm border border-slate-200`}>
+                        <div className="flex justify-between items-center mb-3">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
                             {!isClientView && (
                               <div {...provided.dragHandleProps} className="cursor-grab hover:cursor-grabbing">
-                                <GripVertical className="w-4 h-4 text-slate-400" />
+                                <GripVertical className="w-3 h-3 text-slate-400" />
                               </div>
                             )}
                             
                             {editingStage === column.id ? (
-                              <div className="flex items-center gap-2 flex-1">
+                              <div className="flex items-center gap-1 flex-1">
                                 <Input
                                   value={tempStageTitle}
                                   onChange={(e) => setTempStageTitle(e.target.value)}
-                                  className="text-sm h-8"
+                                  className="text-sm h-7"
                                   autoFocus
                                 />
                                 <Button
                                   size="sm"
                                   onClick={() => handleSaveStage(column.id)}
-                                  className="h-6 w-6 p-0"
+                                  className="h-5 w-5 p-0"
                                 >
                                   <Check className="w-3 h-3" />
                                 </Button>
@@ -916,32 +916,32 @@ const KanbanBoard = () => {
                                   size="sm"
                                   variant="outline"
                                   onClick={handleCancelStageEdit}
-                                  className="h-6 w-6 p-0"
+                                  className="h-5 w-5 p-0"
                                 >
                                   <X className="w-3 h-3" />
                                 </Button>
                               </div>
                             ) : (
                               <>
-                                <h3 className="font-semibold text-slate-900 text-sm flex-1">
+                                <h3 className="font-semibold text-slate-900 text-sm flex-1 truncate">
                                   {column.title}
                                 </h3>
                               </>
                             )}
                           </div>
                           
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 flex-shrink-0">
                             <Badge variant="secondary" className="text-xs font-medium">
                               {column.deals.length}
                             </Badge>
                             {!isClientView && (
                               <>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
                                   <Plus className="w-3 h-3" />
                                 </Button>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
                                       <MoreHorizontal className="w-3 h-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -971,8 +971,8 @@ const KanbanBoard = () => {
                             <div
                               ref={provided.innerRef}
                               {...provided.droppableProps}
-                              className={`space-y-3 min-h-[400px] ${
-                                snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg p-2' : ''
+                              className={`space-y-2 min-h-[400px] ${
+                                snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg p-1' : ''
                               }`}
                             >
                               {column.deals.map((deal, index) => (
@@ -993,38 +993,38 @@ const KanbanBoard = () => {
               
               {/* Add Stage Button */}
               {!isClientView && (
-                <div className="flex-shrink-0 w-80">
+                <div className="flex-shrink-0 w-64">
                   {addingStage ? (
-                    <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px]">
+                    <div className="bg-slate-50 rounded-xl p-3 border-2 border-dashed border-slate-300 min-h-[200px]">
                       <Input
                         value={newStageTitle}
                         onChange={(e) => setNewStageTitle(e.target.value)}
                         placeholder="Nome do novo stage..."
-                        className="text-sm mb-3"
+                        className="text-sm mb-2"
                         autoFocus
                       />
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <Button size="sm" onClick={handleAddStage}>
-                          <Check className="w-4 h-4 mr-1" />
+                          <Check className="w-3 h-3 mr-1" />
                           Adicionar
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => {
                           setAddingStage(false);
                           setNewStageTitle("");
                         }}>
-                          <X className="w-4 h-4 mr-1" />
+                          <X className="w-3 h-3 mr-1" />
                           Cancelar
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px] flex items-center justify-center">
+                    <div className="bg-slate-50 rounded-xl p-3 border-2 border-dashed border-slate-300 min-h-[200px] flex items-center justify-center">
                       <Button
                         variant="ghost"
                         onClick={() => setAddingStage(true)}
                         className="text-slate-600 hover:text-slate-900"
                       >
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="w-3 h-3 mr-1" />
                         Adicionar Stage
                       </Button>
                     </div>
