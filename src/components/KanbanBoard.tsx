@@ -806,27 +806,33 @@ const KanbanBoard = () => {
   return (
     <div className="space-y-4">
       {/* Header with Pipeline Selector and Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4">
+        {/* Left side - Pipeline info and selector */}
+        <div className="flex items-center gap-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Pipeline Kanban</h2>
+            <p className="text-sm text-slate-600">Gerencie seus deals com drag & drop</p>
+          </div>
+          
           {/* Pipeline Dropdown */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Pipeline:</label>
+            <label className="text-sm font-medium whitespace-nowrap">Pipeline:</label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-64 justify-between">
-                  <span>{currentPipeline.name || "Selecione um pipeline"}</span>
-                  <ChevronDown className="h-4 w-4" />
+                <Button variant="outline" className="w-48 justify-between">
+                  <span className="truncate">{currentPipeline.name || "Selecione um pipeline"}</span>
+                  <ChevronDown className="h-4 w-4 flex-shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuContent align="start" className="w-48">
                 {pipelines.map(pipeline => (
                   <DropdownMenuItem 
                     key={pipeline.id} 
                     onClick={() => setSelectedPipeline(pipeline.id)}
                     className="flex items-center justify-between"
                   >
-                    <span>{pipeline.name}</span>
-                    {selectedPipeline === pipeline.id && <Check className="h-4 w-4" />}
+                    <span className="truncate">{pipeline.name}</span>
+                    {selectedPipeline === pipeline.id && <Check className="h-4 w-4 flex-shrink-0" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -839,7 +845,7 @@ const KanbanBoard = () => {
               <Input
                 value={tempPipelineName}
                 onChange={(e) => setTempPipelineName(e.target.value)}
-                className="h-8 w-48"
+                className="h-8 w-40"
                 placeholder="Nome do pipeline"
               />
               <Button size="sm" variant="ghost" onClick={handleSavePipeline} className="h-8 w-8 p-0">
@@ -852,9 +858,13 @@ const KanbanBoard = () => {
           )}
         </div>
         
-        {/* Action Buttons */}
+        {/* Right side - Action Buttons */}
         {!isClientView && (
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              Filtros
+            </Button>
+            
             {/* Add Pipeline Button */}
             <Dialog open={isAddPipelineDialogOpen} onOpenChange={setIsAddPipelineDialogOpen}>
               <DialogTrigger asChild>
