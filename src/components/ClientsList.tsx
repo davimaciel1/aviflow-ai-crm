@@ -63,6 +63,9 @@ const ClientsList = () => {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [newUserData, setNewUserData] = useState<Partial<CompanyUser>>({});
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingAvatarId, setEditingAvatarId] = useState<string | null>(null);
+  const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
+  const [newAvatarUrl, setNewAvatarUrl] = useState("");
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -280,6 +283,32 @@ const ClientsList = () => {
     setIsUserDialogOpen(true);
   };
 
+  const handleEditAvatar = (clientId: string, currentAvatar?: string) => {
+    setEditingAvatarId(clientId);
+    setNewAvatarUrl(currentAvatar || "");
+    setIsAvatarDialogOpen(true);
+  };
+
+  const handleSaveAvatar = () => {
+    if (!editingAvatarId) return;
+
+    setClients(prev => prev.map(client => 
+      client.id === editingAvatarId 
+        ? { ...client, avatar: newAvatarUrl }
+        : client
+    ));
+
+    setEditingAvatarId(null);
+    setNewAvatarUrl("");
+    setIsAvatarDialogOpen(false);
+  };
+
+  const handleCancelAvatarEdit = () => {
+    setEditingAvatarId(null);
+    setNewAvatarUrl("");
+    setIsAvatarDialogOpen(false);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-green-100 text-green-800";
@@ -413,6 +442,51 @@ const ClientsList = () => {
         </Dialog>
       </div>
 
+      {/* Avatar Edit Dialog */}
+      <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Avatar</DialogTitle>
+            <DialogDescription>
+              Adicione uma URL de imagem para o avatar do usuário
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">URL da Imagem</label>
+              <Input
+                value={newAvatarUrl}
+                onChange={(e) => setNewAvatarUrl(e.target.value)}
+                placeholder="https://exemplo.com/avatar.jpg"
+              />
+            </div>
+            
+            {newAvatarUrl && (
+              <div className="flex justify-center">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={newAvatarUrl} />
+                  <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                    Preview
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <Button onClick={handleSaveAvatar} className="flex-1">
+              <Check className="w-4 h-4 mr-2" />
+              Salvar Avatar
+            </Button>
+            <Button variant="outline" onClick={handleCancelAvatarEdit} className="flex-1">
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* User Management Dialog */}
       <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
         <DialogContent>
@@ -487,12 +561,22 @@ const ClientsList = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3 flex-1">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={client.avatar} />
-                        <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
-                          {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={client.avatar} />
+                          <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
+                            {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditAvatar(client.id, client.avatar)}
+                          className="absolute -top-1 -right-1 h-6 w-6 p-0 bg-white border shadow-sm rounded-full hover:bg-gray-50"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      </div>
                       <div className="flex-1">
                         <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
                           <div>
@@ -732,3 +816,5 @@ const ClientsList = () => {
 };
 
 export default ClientsList;
+
+}
