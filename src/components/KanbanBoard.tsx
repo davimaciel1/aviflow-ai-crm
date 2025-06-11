@@ -803,42 +803,26 @@ const KanbanBoard = () => {
           {/* Pipeline Dropdown */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">Pipeline:</label>
-            <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Selecione um pipeline" />
-              </SelectTrigger>
-              <SelectContent>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-64 justify-between">
+                  <span>{currentPipeline.name || "Selecione um pipeline"}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
                 {pipelines.map(pipeline => (
-                  <SelectItem key={pipeline.id} value={pipeline.id}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{pipeline.name}</span>
-                      {!isClientView && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                              <MoreHorizontal className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditPipeline(pipeline.id, pipeline.name)}>
-                              <Edit className="h-3 w-3 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeletePipeline(pipeline.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  </SelectItem>
+                  <DropdownMenuItem 
+                    key={pipeline.id} 
+                    onClick={() => setSelectedPipeline(pipeline.id)}
+                    className="flex items-center justify-between"
+                  >
+                    <span>{pipeline.name}</span>
+                    {selectedPipeline === pipeline.id && <Check className="h-4 w-4" />}
+                  </DropdownMenuItem>
                 ))}
-              </SelectContent>
-            </Select>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Pipeline Edit Mode */}
