@@ -8,12 +8,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Check, 
+  X, 
+  ChevronDown, 
+  ChevronRight, 
+  MessageSquare, 
+  Clock, 
+  Lock, 
+  PenSquare, 
+  User,
+  Laptop,
+  Building2,
+  Zap,
+  Store,
+  Factory,
+  Smartphone,
+  Globe,
+  Heart,
+  Shield,
+  Truck
+} from 'lucide-react';
 import { 
   Pipeline, 
   Stage, 
   Deal, 
   Client,
+  Note,
   convertDatabaseClientToClient,
   convertDatabaseDealToDeal,
   DatabaseClient,
@@ -86,6 +116,37 @@ const KanbanBoard = () => {
     contact: "",
     priority: "low",
     stage_id: ""
+  });
+
+  // New stage and deal states
+  const [isCreateStageOpen, setIsCreateStageOpen] = useState<boolean>(false);
+  const [newStage, setNewStage] = useState<{
+    title: string;
+    pipelineId: string;
+  }>({
+    title: '',
+    pipelineId: ''
+  });
+
+  const [isCreateDealOpen, setIsCreateDealOpen] = useState<boolean>(false);
+  const [newDeal, setNewDeal] = useState<{
+    title: string;
+    description: string;
+    clientId: string;
+    contact: string;
+    value: string;
+    priority: "low" | "medium" | "high";
+    stageId: string;
+    confidential: string;
+  }>({
+    title: '',
+    description: '',
+    clientId: '',
+    contact: '',
+    value: '',
+    priority: 'low',
+    stageId: '',
+    confidential: ''
   });
 
   // Load data from Supabase
@@ -438,7 +499,9 @@ const KanbanBoard = () => {
           stages: [...pipeline.stages, {
             id: newStageId,
             title: newStageTitle,
-            deals: []
+            deals: [],
+            pipeline_id: pipeline.id,
+            position: pipeline.stages.length
           }]
         };
       });
@@ -559,11 +622,12 @@ const KanbanBoard = () => {
   };
   const handleAddNote = (dealId: string, stageId: string) => {
     if (!newNote.trim()) return;
-    const note: Note = {
+    const note = {
       id: `note-${Date.now()}`,
       text: newNote,
-      created_at: new Date().toISOString(),
-      author_id: user?.id || ""
+      dealId: dealId,
+      authorId: user?.id || "",
+      createdAt: new Date().toISOString(),
     };
     setPipelines(prevPipelines => {
       return prevPipelines.map(pipeline => {
@@ -621,7 +685,7 @@ const KanbanBoard = () => {
   };
   const handleAddPipeline = () => {
     if (!newPipelineData.name.trim()) return;
-    const newPipeline: Pipeline = {
+    const newPipeline = {
       id: `pipeline-${Date.now()}`,
       name: newPipelineData.name,
       stages: [{
@@ -684,7 +748,7 @@ const KanbanBoard = () => {
       return;
     }
     const selectedClient = clients.find(c => c.id === newDealData.client_id);
-    const newDeal: Deal = {
+    const newDeal = {
       id: `deal-${Date.now()}`,
       title: newDealData.title,
       description: newDealData.description,
@@ -694,7 +758,8 @@ const KanbanBoard = () => {
       priority: newDealData.priority,
       stage_id: newDealData.stage_id,
       notes: [],
-      user_id: user?.id || ""
+      user_id: user?.id || "",
+      position: 0
     };
     setPipelines(prevPipelines => {
       const updatedPipelines = prevPipelines.map(pipeline => {
@@ -803,7 +868,7 @@ const KanbanBoard = () => {
           variant: "destructive",
         });
         // Reload data to sync with database
-        loadPipelines();
+        loadData();
       }
     } catch (error) {
       console.error('Error updating deal:', error);
@@ -1262,6 +1327,7 @@ const KanbanBoard = () => {
                           </Badge>
                         </h3>
                       </div>}
+                  </div>
                   
                   <Droppable droppableId={stage.id}>
                     {provided => <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] p-3 space-y-3">
@@ -1499,7 +1565,7 @@ const KanbanBoard = () => {
                                                 <div className="flex items-center gap-1 mt-1">
                                                   <Clock className="h-2 w-2 text-slate-400" />
                                                   <span className="text-[10px] text-slate-400">
-                                                    {new Date(note.created_at).toLocaleDateString()} por {note.author_id}
+                                                    {new Date(note.createdAt).toLocaleDateString()} por {note.authorId}
                                                   </span>
                                                 </div>
                                               </div>
@@ -1555,10 +1621,13 @@ const KanbanBoard = () => {
                                       )}
                                     </div>
                                   )}
-                                </Draggable>
-                              ))}
-                              {provided.placeholder}
-                            </div>}
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>}
                   </Droppable>
                   
                   {!isClientView && !addingStage && <div className="p-3 border-t border-slate-200">
@@ -1591,6 +1660,20 @@ const KanbanBoard = () => {
               </div>}
           </div>
         </DragDropContext>
+      ) : (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-slate-900 mb-2">Nenhum pipeline encontrado</h3>
+            <p className="text-slate-600 mb-4">Crie seu primeiro pipeline para começar</p>
+            {!isClientView && (
+              <Button onClick={() => setIsAddPipelineDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Criar Pipeline
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Edit Deal Drawer */}
       <Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
