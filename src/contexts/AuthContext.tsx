@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { isValidRole } from '@/types/database';
 
 interface UserProfile {
   id: string;
@@ -53,7 +53,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.error('Error fetching profile:', error);
               setUser(null);
             } else {
-              setUser(profile);
+              // Safely convert the database profile to UserProfile
+              const userProfile: UserProfile = {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: isValidRole(profile.role) ? profile.role : 'client',
+              };
+              setUser(userProfile);
             }
           } catch (error) {
             console.error('Error in auth state change:', error);

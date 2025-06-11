@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,63 +6,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { MoreHorizontal, Plus, Trash2, Edit, Check, X, ChevronDown, ChevronRight, Clock, Calendar, User, Building2, Mail, Phone, AlertTriangle, Flag, MessageSquare, Lock, Unlock, PenSquare, Factory, Store, Briefcase, Laptop, Smartphone, Globe, Zap, Heart, Shield, Truck } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-interface Client {
-  id: string;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  avatar?: string;
-  status: "active" | "inactive" | "prospect";
-}
-
-interface Note {
-  id: string;
-  text: string;
-  created_at: string;
-  author_id: string;
-}
-
-interface Deal {
-  id: string;
-  title: string;
-  description?: string;
-  client?: string;
-  client_id?: string;
-  contact?: string;
-  value?: number;
-  priority: "low" | "medium" | "high";
-  stage_id: string;
-  confidential?: string;
-  notes?: Note[];
-  user_id: string;
-}
-
-interface Stage {
-  id: string;
-  title: string;
-  deals: Deal[];
-  pipeline_id: string;
-  position: number;
-}
-
-interface Pipeline {
-  id: string;
-  name: string;
-  stages: Stage[];
-  user_id: string;
-}
+import { 
+  Pipeline, 
+  Stage, 
+  Deal, 
+  Client,
+  convertDatabaseClientToClient,
+  convertDatabaseDealToDeal,
+  DatabaseClient,
+  DatabaseDeal,
+  DatabaseNote,
+  DatabaseStage,
+  DatabasePipeline
+} from "@/types/database";
 
 const KanbanBoard = () => {
   const { user } = useAuth();
@@ -772,55 +731,228 @@ const KanbanBoard = () => {
       setTempStageTitle(currentTitle);
     }
   };
-  const handleDragEnd = (result: any) => {
-    const {
-      source,
-      destination,
-      draggableId
-    } = result;
-    if (!destination) {
-      return;
-    }
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+    
     if (source.droppableId === destination.droppableId && source.index === destination.index) {
       return;
     }
-    let draggedDeal: Deal | undefined;
-    let sourceStageIndex = -1;
-    currentPipeline.stages.forEach((stage, stageIndex) => {
-      const foundDealIndex = stage.deals.findIndex(deal => deal.id === draggableId);
-      if (foundDealIndex !== -1) {
-        draggedDeal = stage.deals[foundDealIndex];
-        sourceStageIndex = stageIndex;
-      }
+
+    // Handle moving deals between stages
+    const pipeline = currentPipeline;
+    if (!pipeline) return;
+
+    const sourceStage = pipeline.stages.find(s => s.id === source.droppableId);
+    const destStage = pipeline.stages.find(s => s.id === destination.droppableId);
+    
+    if (!sourceStage || !destStage) return;
+
+    const deal = sourceStage.deals.find(d => d.id === draggableId);
+    if (!deal) return;
+
+    // Update local state immediately for better UX
+    const newPipelines = pipelines.map(p => {
+      if (p.id !== pipeline.id) return p;
+      
+      return {
+        ...p,
+        stages: p.stages.map(stage => {
+          if (stage.id === source.droppableId) {
+            // Remove deal from source stage
+            return {
+              ...stage,
+              deals: stage.deals.filter(d => d.id !== draggableId)
+            };
+          } else if (stage.id === destination.droppableId) {
+            // Add deal to destination stage
+            const newDeals = [...stage.deals];
+            newDeals.splice(destination.index, 0, deal);
+            return {
+              ...stage,
+              deals: newDeals
+            };
+          }
+          return stage;
+        })
+      };
     });
-    if (!draggedDeal) return;
-    setPipelines(prevPipelines => {
-      return prevPipelines.map(pipeline => {
-        if (pipeline.id !== selectedPipeline) return pipeline;
-        const newStages = [...pipeline.stages];
-        const sourceDeals = [...newStages[sourceStageIndex].deals];
-        const [removedDeal] = sourceDeals.splice(source.index, 1);
-        newStages[sourceStageIndex] = {
-          ...newStages[sourceStageIndex],
-          deals: sourceDeals
-        };
-        const destStageIndex = newStages.findIndex(stage => stage.id === destination.droppableId);
-        const destDeals = [...newStages[destStageIndex].deals];
-        destDeals.splice(destination.index, 0, {
-          ...removedDeal,
-          stage_id: destination.droppableId
-        });
-        newStages[destStageIndex] = {
-          ...newStages[destStageIndex],
-          deals: destDeals
-        };
-        return {
-          ...pipeline,
-          stages: newStages
-        };
-      });
-    });
+
+    setPipelines(newPipelines);
+
+    // Update in database
+    updateDealStage(draggableId, destination.droppableId, destination.index);
   };
+
+  const updateDealStage = async (dealId: string, newStageId: string, newPosition: number) => {
+    try {
+      const { error } = await supabase
+        .from('deals')
+        .update({
+          stage_id: newStageId,
+          position: newPosition
+        })
+        .eq('id', dealId);
+
+      if (error) {
+        console.error('Error updating deal:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update deal position",
+          variant: "destructive",
+        });
+        // Reload data to sync with database
+        loadPipelines();
+      }
+    } catch (error) {
+      console.error('Error updating deal:', error);
+    }
+  };
+
+  const handleCreateStage = async () => {
+    if (!user || !newStage.title || !newStage.pipelineId) return;
+
+    try {
+      const pipeline = pipelines.find(p => p.id === newStage.pipelineId);
+      const position = pipeline ? pipeline.stages.length : 0;
+
+      const { data, error } = await supabase
+        .from('stages')
+        .insert([{
+          title: newStage.title,
+          pipeline_id: newStage.pipelineId,
+          position: position
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating stage:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create stage",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setPipelines(prevPipelines => 
+        prevPipelines.map(p => 
+          p.id === newStage.pipelineId 
+            ? {
+                ...p,
+                stages: [...p.stages, {
+                  id: data.id,
+                  title: data.title,
+                  pipeline_id: data.pipeline_id,
+                  position: data.position,
+                  deals: []
+                }]
+              }
+            : p
+        )
+      );
+
+      setNewStage({ title: '', pipelineId: '' });
+      setIsCreateStageOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Stage created successfully",
+      });
+    } catch (error) {
+      console.error('Error creating stage:', error);
+    }
+  };
+
+  const handleCreateDeal = async () => {
+    if (!user || !newDeal.title || !newDeal.stageId) return;
+
+    try {
+      const stage = getStageById(newDeal.stageId);
+      const position = stage ? stage.deals.length : 0;
+
+      const { data, error } = await supabase
+        .from('deals')
+        .insert([{
+          title: newDeal.title,
+          description: newDeal.description || null,
+          client_id: newDeal.clientId || null,
+          contact: newDeal.contact || null,
+          value: newDeal.value ? parseFloat(newDeal.value) : null,
+          priority: newDeal.priority,
+          stage_id: newDeal.stageId,
+          confidential: newDeal.confidential || null,
+          position: position,
+          user_id: user.id
+        }])
+        .select(`
+          *,
+          client:clients(*),
+          notes:notes(*)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error creating deal:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create deal",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert and update local state
+      const newDealConverted = convertDatabaseDealToDeal({
+        ...data,
+        client: data.client,
+        notes: data.notes || []
+      });
+
+      setPipelines(prevPipelines => 
+        prevPipelines.map(p => ({
+          ...p,
+          stages: p.stages.map(stage => 
+            stage.id === newDeal.stageId 
+              ? { ...stage, deals: [...stage.deals, newDealConverted] }
+              : stage
+          )
+        }))
+      );
+
+      setNewDeal({
+        title: '',
+        description: '',
+        clientId: '',
+        contact: '',
+        value: '',
+        priority: 'low',
+        stageId: '',
+        confidential: ''
+      });
+      setIsCreateDealOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Deal created successfully",
+      });
+    } catch (error) {
+      console.error('Error creating deal:', error);
+    }
+  };
+
+  const getStageById = (stageId: string) => {
+    const pipeline = currentPipeline;
+    return pipeline?.stages.find(s => s.id === stageId);
+  };
+
+  const getCurrentPipeline = () => {
+    return pipelines.find(p => p.id === selectedPipeline);
+  };
+
   const toggleExpanded = (dealId: string) => {
     setExpandedCards(prev => {
       const newSet = new Set(prev);
@@ -842,7 +974,7 @@ const KanbanBoard = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <div>
@@ -1108,160 +1240,53 @@ const KanbanBoard = () => {
       </div>
 
       {/* Kanban Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-6">
-          {currentPipeline.stages.map(stage => <div key={stage.id} className="flex-shrink-0 w-80">
-              <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-200">
-                <div className="p-3 border-b border-slate-200 bg-slate-100 rounded-t-lg">
-                  {editingStage === stage.id ? <div className="flex items-center gap-2">
-                      <Input value={tempStageTitle} onChange={e => setTempStageTitle(e.target.value)} className="h-8" />
-                      <Button size="sm" variant="ghost" onClick={handleSaveStage} className="h-8 w-8 p-0">
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleCancelEditStage} className="h-8 w-8 p-0">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div> : <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-slate-800 flex items-center cursor-pointer" onDoubleClick={() => handleStageDoubleClick(stage.id, stage.title)}>
-                        {stage.title}
-                        <Badge variant="outline" className="ml-2 bg-white">
-                          {stage.deals.length}
-                        </Badge>
-                      </h3>
-                    </div>}
-                </div>
-                
-                <Droppable droppableId={stage.id}>
-                  {provided => <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] p-3 space-y-3">
-                      {stage.deals.map((deal, index) => (
-                        <Draggable key={deal.id} draggableId={deal.id} index={index} isDragDisabled={isClientView}>
-                          {provided => (
-                            <div 
-                              ref={provided.innerRef} 
-                              {...provided.draggableProps} 
-                              {...provided.dragHandleProps} 
-                              className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
-                            >
-                              <div className="p-3">
-                                <div className="flex justify-between items-start">
-                                  {/* Título editável inline */}
-                                  {editingTitle === deal.id ? (
-                                    <div className="flex-1 mr-2">
-                                      <Input 
-                                        value={tempTitle} 
-                                        onChange={e => setTempTitle(e.target.value)} 
-                                        className="text-sm font-medium" 
-                                        onBlur={() => handleSaveTitle(deal.id, stage.id)} 
-                                        onKeyDown={e => {
-                                          if (e.key === 'Enter') {
-                                            handleSaveTitle(deal.id, stage.id);
-                                          } else if (e.key === 'Escape') {
-                                            handleCancelEdit();
-                                          }
-                                        }} 
-                                        autoFocus 
-                                      />
-                                    </div>
-                                  ) : (
-                                    <h4 
-                                      className="font-medium text-slate-800 cursor-pointer hover:bg-slate-50 p-1 rounded flex-1" 
-                                      onDoubleClick={() => !isClientView && handleEditTitle(deal.id, deal.title)}
-                                    >
-                                      {deal.title}
-                                    </h4>
-                                  )}
-                                  
-                                  <div className="flex items-center">
-                                    <Badge className={getPriorityColor(deal.priority)}>
-                                      {getPriorityLabel(deal.priority)}
-                                    </Badge>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm" 
-                                      onClick={() => toggleExpanded(deal.id)} 
-                                      className="h-7 w-7 p-0 ml-1"
-                                    >
-                                      {expandedCards.has(deal.id) ? 
-                                        <ChevronDown className="h-4 w-4" /> : 
-                                        <ChevronRight className="h-4 w-4" />
-                                      }
-                                    </Button>
-                                  </div>
-                                </div>
-                                
-                                {/* Descrição editável inline */}
-                                {editingDescription === deal.id ? (
-                                  <div className="mt-1">
-                                    <Textarea 
-                                      value={tempDescription} 
-                                      onChange={e => setTempDescription(e.target.value)} 
-                                      className="text-sm min-h-[60px]" 
-                                      onBlur={() => handleSaveDescription(deal.id, stage.id)} 
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter' && e.ctrlKey) {
-                                          handleSaveDescription(deal.id, stage.id);
-                                        } else if (e.key === 'Escape') {
-                                          handleCancelEdit();
-                                        }
-                                      }} 
-                                      autoFocus 
-                                    />
-                                  </div>
-                                ) : deal.description && (
-                                  <p 
-                                    className="text-sm text-slate-600 mt-1 line-clamp-2 cursor-pointer hover:bg-slate-50 p-1 rounded" 
-                                    onDoubleClick={() => !isClientView && handleEditDescription(deal.id, deal.description)}
-                                  >
-                                    {deal.description}
-                                  </p>
-                                )}
-                                
-                                {/* Client information with avatar */}
-                                {(() => {
-                                  const clientInfo = getClientDisplayInfo(deal);
-                                  return (
-                                    <>
-                                      {clientInfo.company && (
-                                        <div className="flex items-center gap-2 mt-2">
-                                          <Avatar className="h-6 w-6">
-                                            <AvatarImage src={clientInfo.avatar} alt={clientInfo.name} />
-                                            <AvatarFallback className="text-xs">
-                                              {clientInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <div className="flex items-center gap-2 text-xs text-slate-500">
-                                            {getCompanyIcon(clientInfo.company)}
-                                            <span>{clientInfo.company}</span>
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      {clientInfo.name && (
-                                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
-                                          <User className="h-3 w-3" />
-                                          <span>{clientInfo.name}</span>
-                                        </div>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                                
-                                {/* Rest of the card content when expanded */}
-                                {expandedCards.has(deal.id) && (
-                                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
-                                    {/* Valor editável inline - só aparece quando expandido */}
-                                    {editingValue === deal.id ? (
-                                      <div>
-                                        <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+      {currentPipeline ? (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="flex gap-6 overflow-x-auto pb-6">
+            {currentPipeline.stages.map(stage => <div key={stage.id} className="flex-shrink-0 w-80">
+                <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-200">
+                  <div className="p-3 border-b border-slate-200 bg-slate-100 rounded-t-lg">
+                    {editingStage === stage.id ? <div className="flex items-center gap-2">
+                        <Input value={tempStageTitle} onChange={e => setTempStageTitle(e.target.value)} className="h-8" />
+                        <Button size="sm" variant="ghost" onClick={handleSaveStage} className="h-8 w-8 p-0">
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelEditStage} className="h-8 w-8 p-0">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div> : <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-slate-800 flex items-center cursor-pointer" onDoubleClick={() => handleStageDoubleClick(stage.id, stage.title)}>
+                          {stage.title}
+                          <Badge variant="outline" className="ml-2 bg-white">
+                            {stage.deals.length}
+                          </Badge>
+                        </h3>
+                      </div>}
+                  
+                  <Droppable droppableId={stage.id}>
+                    {provided => <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[200px] p-3 space-y-3">
+                        {stage.deals.map((deal, index) => (
+                          <Draggable key={deal.id} draggableId={deal.id} index={index} isDragDisabled={isClientView}>
+                            {provided => (
+                              <div 
+                                ref={provided.innerRef} 
+                                {...provided.draggableProps} 
+                                {...provided.dragHandleProps} 
+                                className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
+                              >
+                                <div className="p-3">
+                                  <div className="flex justify-between items-start">
+                                    {/* Título editável inline */}
+                                    {editingTitle === deal.id ? (
+                                      <div className="flex-1 mr-2">
                                         <Input 
-                                          type="number" 
-                                          value={tempValue} 
-                                          onChange={e => setTempValue(e.target.value)} 
-                                          className="text-sm" 
-                                          onBlur={() => handleSaveValue(deal.id, stage.id)} 
+                                          value={tempTitle} 
+                                          onChange={e => setTempTitle(e.target.value)} 
+                                          className="text-sm font-medium" 
+                                          onBlur={() => handleSaveTitle(deal.id, stage.id)} 
                                           onKeyDown={e => {
                                             if (e.key === 'Enter') {
-                                              handleSaveValue(deal.id, stage.id);
+                                              handleSaveTitle(deal.id, stage.id);
                                             } else if (e.key === 'Escape') {
                                               handleCancelEdit();
                                             }
@@ -1269,197 +1294,303 @@ const KanbanBoard = () => {
                                           autoFocus 
                                         />
                                       </div>
-                                    ) : deal.value && (
-                                      <div>
-                                        <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
-                                        <div 
-                                          className="text-sm text-slate-600 cursor-pointer hover:bg-slate-50 p-1 rounded" 
-                                          onDoubleClick={() => !isClientView && handleEditValue(deal.id, deal.value)}
-                                        >
-                                          <span className="font-medium text-green-600">
-                                            {getFormattedValue(deal.value)}
-                                          </span>
-                                        </div>
-                                      </div>
+                                    ) : (
+                                      <h4 
+                                        className="font-medium text-slate-800 cursor-pointer hover:bg-slate-50 p-1 rounded flex-1" 
+                                        onDoubleClick={() => !isClientView && handleEditTitle(deal.id, deal.title)}
+                                      >
+                                        {deal.title}
+                                      </h4>
                                     )}
-
-                                    {/* Confidential Information */}
-                                    <div className="bg-slate-50 rounded p-2">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-1 text-xs font-medium text-slate-700">
-                                          <Lock className="h-3 w-3" />
-                                          <span>Informação Confidencial</span>
-                                        </div>
-                                        {!isClientView && (
-                                          <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            onClick={() => handleEditConfidential(deal.id, deal.confidential)} 
-                                            className="h-5 w-5 p-0"
-                                          >
-                                            <PenSquare className="h-3 w-3" />
-                                          </Button>
-                                        )}
-                                      </div>
-                                      
-                                      {editingConfidential === deal.id ? (
-                                        <div className="space-y-2">
-                                          <Textarea 
-                                            value={tempConfidentialValue} 
-                                            onChange={e => setTempConfidentialValue(e.target.value)} 
-                                            placeholder="Informação confidencial..." 
-                                            className="text-xs min-h-[60px]" 
-                                          />
-                                          <div className="flex gap-1">
-                                            <Button 
-                                              size="sm" 
-                                              variant="outline" 
-                                              onClick={() => handleSaveConfidential(deal.id, stage.id)} 
-                                              className="h-7 text-xs flex-1"
-                                            >
-                                              <Check className="h-3 w-3 mr-1" />
-                                              Salvar
-                                            </Button>
-                                            <Button 
-                                              size="sm" 
-                                              variant="outline" 
-                                              onClick={handleCancelEditConfidential} 
-                                              className="h-7 text-xs flex-1"
-                                            >
-                                              <X className="h-3 w-3 mr-1" />
-                                              Cancelar
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <p className="text-xs text-slate-600">
-                                          {deal.confidential || "Nenhuma informação confidencial"}
-                                        </p>
-                                      )}
-                                    </div>
                                     
-                                    {/* Notes Section */}
-                                    <div>
-                                      <div className="flex items-center gap-1 mb-2">
-                                        <MessageSquare className="h-3 w-3" />
-                                        <span className="text-xs font-medium">Notas</span>
-                                      </div>
-                                      
-                                      <div className="space-y-2">
-                                        {deal.notes && deal.notes.length > 0 ? (
-                                          deal.notes.map(note => (
-                                            <div key={note.id} className="bg-slate-50 rounded p-2">
-                                              <div className="flex justify-between">
-                                                <p className="text-xs text-slate-600">{note.text}</p>
-                                                {!isClientView && (
-                                                  <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    onClick={() => handleDeleteNote(deal.id, stage.id, note.id)} 
-                                                    className="h-5 w-5 p-0 -mt-1 -mr-1"
-                                                  >
-                                                    <X className="h-3 w-3" />
-                                                  </Button>
-                                                )}
-                                              </div>
-                                              <div className="flex items-center gap-1 mt-1">
-                                                <Clock className="h-2 w-2 text-slate-400" />
-                                                <span className="text-[10px] text-slate-400">
-                                                  {new Date(note.created_at).toLocaleDateString()} por {note.author_id}
-                                                </span>
-                                              </div>
+                                    <div className="flex items-center">
+                                      <Badge className={getPriorityColor(deal.priority)}>
+                                        {getPriorityLabel(deal.priority)}
+                                      </Badge>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={() => toggleExpanded(deal.id)} 
+                                        className="h-7 w-7 p-0 ml-1"
+                                      >
+                                        {expandedCards.has(deal.id) ? 
+                                          <ChevronDown className="h-4 w-4" /> : 
+                                          <ChevronRight className="h-4 w-4" />
+                                        }
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Descrição editável inline */}
+                                  {editingDescription === deal.id ? (
+                                    <div className="mt-1">
+                                      <Textarea 
+                                        value={tempDescription} 
+                                        onChange={e => setTempDescription(e.target.value)} 
+                                        className="text-sm min-h-[60px]" 
+                                        onBlur={() => handleSaveDescription(deal.id, stage.id)} 
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter' && e.ctrlKey) {
+                                            handleSaveDescription(deal.id, stage.id);
+                                          } else if (e.key === 'Escape') {
+                                            handleCancelEdit();
+                                          }
+                                        }} 
+                                        autoFocus 
+                                      />
+                                    </div>
+                                  ) : deal.description && (
+                                    <p 
+                                      className="text-sm text-slate-600 mt-1 line-clamp-2 cursor-pointer hover:bg-slate-50 p-1 rounded" 
+                                      onDoubleClick={() => !isClientView && handleEditDescription(deal.id, deal.description)}
+                                    >
+                                      {deal.description}
+                                    </p>
+                                  )}
+                                  
+                                  {/* Client information with avatar */}
+                                  {(() => {
+                                    const clientInfo = getClientDisplayInfo(deal);
+                                    return (
+                                      <>
+                                        {clientInfo.company && (
+                                          <div className="flex items-center gap-2 mt-2">
+                                            <Avatar className="h-6 w-6">
+                                              {clientInfo.avatar && (
+                                                <AvatarImage src={clientInfo.avatar} alt={clientInfo.name} />
+                                              )}
+                                              <AvatarFallback className="text-xs">
+                                                {clientInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                              {getCompanyIcon(clientInfo.company)}
+                                              <span>{clientInfo.company}</span>
                                             </div>
-                                          ))
-                                        ) : (
-                                          <p className="text-xs text-slate-400 italic">
-                                            Nenhuma nota
-                                          </p>
+                                          </div>
                                         )}
                                         
-                                        {!isClientView && (
-                                          <div className="pt-1">
-                                            <Textarea 
-                                              value={newNote} 
-                                              onChange={e => setNewNote(e.target.value)} 
-                                              placeholder="Adicionar nota..." 
-                                              className="text-xs min-h-[60px]" 
-                                            />
-                                            <Button 
-                                              size="sm" 
-                                              onClick={() => handleAddNote(deal.id, stage.id)} 
-                                              className="mt-2 h-7 text-xs w-full"
-                                            >
-                                              <Plus className="h-3 w-3 mr-1" />
-                                              Adicionar Nota
-                                            </Button>
+                                        {clientInfo.name && (
+                                          <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                                            <User className="h-3 w-3" />
+                                            <span>{clientInfo.name}</span>
                                           </div>
                                         )}
+                                      </>
+                                    );
+                                  })()}
+                                  
+                                  {/* Rest of the card content when expanded */}
+                                  {expandedCards.has(deal.id) && (
+                                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+                                      {/* Valor editável inline - só aparece quando expandido */}
+                                      {editingValue === deal.id ? (
+                                        <div>
+                                          <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+                                          <Input 
+                                            type="number" 
+                                            value={tempValue} 
+                                            onChange={e => setTempValue(e.target.value)} 
+                                            className="text-sm" 
+                                            onBlur={() => handleSaveValue(deal.id, stage.id)} 
+                                            onKeyDown={e => {
+                                              if (e.key === 'Enter') {
+                                                handleSaveValue(deal.id, stage.id);
+                                              } else if (e.key === 'Escape') {
+                                                handleCancelEdit();
+                                              }
+                                            }} 
+                                            autoFocus 
+                                          />
+                                        </div>
+                                      ) : deal.value && (
+                                        <div>
+                                          <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+                                          <div 
+                                            className="text-sm text-slate-600 cursor-pointer hover:bg-slate-50 p-1 rounded" 
+                                            onDoubleClick={() => !isClientView && handleEditValue(deal.id, deal.value)}
+                                          >
+                                            <span className="font-medium text-green-600">
+                                              {getFormattedValue(deal.value)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Confidential Information */}
+                                      <div className="bg-slate-50 rounded p-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <div className="flex items-center gap-1 text-xs font-medium text-slate-700">
+                                            <Lock className="h-3 w-3" />
+                                            <span>Informação Confidencial</span>
+                                          </div>
+                                          {!isClientView && (
+                                            <Button 
+                                              variant="ghost" 
+                                              size="sm" 
+                                              onClick={() => handleEditConfidential(deal.id, deal.confidential)} 
+                                              className="h-5 w-5 p-0"
+                                            >
+                                              <PenSquare className="h-3 w-3" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                        
+                                        {editingConfidential === deal.id ? (
+                                          <div className="space-y-2">
+                                            <Textarea 
+                                              value={tempConfidentialValue} 
+                                              onChange={e => setTempConfidentialValue(e.target.value)} 
+                                              placeholder="Informação confidencial..." 
+                                              className="text-xs min-h-[60px]" 
+                                            />
+                                            <div className="flex gap-1">
+                                              <Button 
+                                                size="sm" 
+                                                variant="outline" 
+                                                onClick={() => handleSaveConfidential(deal.id, stage.id)} 
+                                                className="h-7 text-xs flex-1"
+                                              >
+                                                <Check className="h-3 w-3 mr-1" />
+                                                Salvar
+                                              </Button>
+                                              <Button 
+                                                size="sm" 
+                                                variant="outline" 
+                                                onClick={handleCancelEditConfidential} 
+                                                className="h-7 text-xs flex-1"
+                                              >
+                                                <X className="h-3 w-3 mr-1" />
+                                                Cancelar
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-slate-600">
+                                            {deal.confidential || "Nenhuma informação confidencial"}
+                                          </p>
+                                        )}
                                       </div>
+                                      
+                                      {/* Notes Section */}
+                                      <div>
+                                        <div className="flex items-center gap-1 mb-2">
+                                          <MessageSquare className="h-3 w-3" />
+                                          <span className="text-xs font-medium">Notas</span>
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                          {deal.notes && deal.notes.length > 0 ? (
+                                            deal.notes.map(note => (
+                                              <div key={note.id} className="bg-slate-50 rounded p-2">
+                                                <div className="flex justify-between">
+                                                  <p className="text-xs text-slate-600">{note.text}</p>
+                                                  {!isClientView && (
+                                                    <Button 
+                                                      variant="ghost" 
+                                                      size="sm" 
+                                                      onClick={() => handleDeleteNote(deal.id, stage.id, note.id)} 
+                                                      className="h-5 w-5 p-0 -mt-1 -mr-1"
+                                                    >
+                                                      <X className="h-3 w-3" />
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center gap-1 mt-1">
+                                                  <Clock className="h-2 w-2 text-slate-400" />
+                                                  <span className="text-[10px] text-slate-400">
+                                                    {new Date(note.created_at).toLocaleDateString()} por {note.author_id}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            ))
+                                          ) : (
+                                            <p className="text-xs text-slate-400 italic">
+                                              Nenhuma nota
+                                            </p>
+                                          )}
+                                          
+                                          {!isClientView && (
+                                            <div className="pt-1">
+                                              <Textarea 
+                                                value={newNote} 
+                                                onChange={e => setNewNote(e.target.value)} 
+                                                placeholder="Adicionar nota..." 
+                                                className="text-xs min-h-[60px]" 
+                                              />
+                                              <Button 
+                                                size="sm" 
+                                                onClick={() => handleAddNote(deal.id, stage.id)} 
+                                                className="mt-2 h-7 text-xs w-full"
+                                              >
+                                                <Plus className="h-3 w-3 mr-1" />
+                                                Adicionar Nota
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      {!isClientView && (
+                                        <div className="flex gap-2 pt-2">
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => handleEditCard(deal)} 
+                                            className="flex-1 h-8"
+                                          >
+                                            <Edit className="h-3 w-3 mr-1" />
+                                            Editar
+                                          </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => handleDeleteCard(deal.id)} 
+                                            className="flex-1 h-8 text-red-600 hover:text-red-700"
+                                          >
+                                            <Trash2 className="h-3 w-3 mr-1" />
+                                            Excluir
+                                          </Button>
+                                        </div>
+                                      )}
                                     </div>
-                                    
-                                    {!isClientView && (
-                                      <div className="flex gap-2 pt-2">
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm" 
-                                          onClick={() => handleEditCard(deal)} 
-                                          className="flex-1 h-8"
-                                        >
-                                          <Edit className="h-3 w-3 mr-1" />
-                                          Editar
-                                        </Button>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm" 
-                                          onClick={() => handleDeleteCard(deal.id)} 
-                                          className="flex-1 h-8 text-red-600 hover:text-red-700"
-                                        >
-                                          <Trash2 className="h-3 w-3 mr-1" />
-                                          Excluir
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
+                            </div>}
+                  </Droppable>
+                  
+                  {!isClientView && !addingStage && <div className="p-3 border-t border-slate-200">
+                      <Button variant="ghost" size="sm" onClick={() => setIsAddDealDialogOpen(true)} className="w-full justify-center text-slate-600 hover:text-slate-900">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Adicionar Card
+                      </Button>
                     </div>}
-                </Droppable>
-                
-                {!isClientView && !addingStage && <div className="p-3 border-t border-slate-200">
-                    <Button variant="ghost" size="sm" onClick={() => setIsAddDealDialogOpen(true)} className="w-full justify-center text-slate-600 hover:text-slate-900">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Adicionar Card
-                    </Button>
-                  </div>}
-              </div>
-            </div>)}
-          
-          {!isClientView && <div className="flex-shrink-0 w-80">
-              {addingStage ? <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-200 p-3">
-                  <h3 className="font-medium text-slate-800 mb-2">Novo Estágio</h3>
-                  <Input value={newStageTitle} onChange={e => setNewStageTitle(e.target.value)} placeholder="Nome do estágio" className="mb-3" />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleAddStage} className="flex-1">
-                      <Check className="h-4 w-4 mr-1" />
-                      Adicionar
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setAddingStage(false)} className="flex-1">
-                      <X className="h-4 w-4 mr-1" />
-                      Cancelar
-                    </Button>
-                  </div>
-                </div> : <Button variant="outline" className="border-dashed border-2 h-12 w-full" onClick={() => setAddingStage(true)}>
-                  <Plus className="h-5 w-5 mr-1" />
-                  Adicionar Estágio
-                </Button>}
-            </div>}
-        </div>
-      </DragDropContext>
+                </div>
+              </div>)}
+            
+            {!isClientView && <div className="flex-shrink-0 w-80">
+                {addingStage ? <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-200 p-3">
+                    <h3 className="font-medium text-slate-800 mb-2">Novo Estágio</h3>
+                    <Input value={newStageTitle} onChange={e => setNewStageTitle(e.target.value)} placeholder="Nome do estágio" className="mb-3" />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleAddStage} className="flex-1">
+                        <Check className="h-4 w-4 mr-1" />
+                        Adicionar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setAddingStage(false)} className="flex-1">
+                        <X className="h-4 w-4 mr-1" />
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div> : <Button variant="outline" className="border-dashed border-2 h-12 w-full" onClick={() => setAddingStage(true)}>
+                    <Plus className="h-5 w-5 mr-1" />
+                    Adicionar Estágio
+                  </Button>}
+              </div>}
+          </div>
+        </DragDropContext>
 
       {/* Edit Deal Drawer */}
       <Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
