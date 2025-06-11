@@ -23,6 +23,8 @@ const ResetPassword = () => {
     const handleAuthRedirect = async () => {
       try {
         console.log('Checking URL for auth tokens...');
+        console.log('Current URL:', window.location.href);
+        console.log('Hash:', window.location.hash);
         
         // Check if there's a hash with auth tokens in the URL
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -30,7 +32,11 @@ const ResetPassword = () => {
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
 
-        console.log('Hash params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
+        console.log('Hash params:', { 
+          accessToken: accessToken ? 'present' : 'missing', 
+          refreshToken: refreshToken ? 'present' : 'missing', 
+          type 
+        });
 
         if (accessToken && refreshToken && type === 'recovery') {
           console.log('Setting session with tokens from URL...');
@@ -43,24 +49,25 @@ const ResetPassword = () => {
           if (error) {
             console.error('Error setting session:', error);
             setError("Link de recuperação inválido ou expirado");
-            setIsCheckingSession(false);
-            return;
+          } else if (data.session) {
+            console.log('Session set successfully');
+            setIsValidSession(true);
+            // Clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            console.error('No session returned');
+            setError("Erro ao configurar sessão de recuperação");
           }
-
-          console.log('Session set successfully:', !!data.session);
-          setIsValidSession(true);
-          
-          // Clean up the URL
-          window.history.replaceState({}, document.title, window.location.pathname);
         } else {
           // Check for existing session
+          console.log('No recovery tokens found, checking existing session...');
           const { data: { session } } = await supabase.auth.getSession();
           console.log('Existing session:', !!session);
           
           if (session) {
             setIsValidSession(true);
           } else {
-            setError("Link de recuperação inválido ou expirado");
+            setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link.");
           }
         }
       } catch (error) {
