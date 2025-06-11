@@ -996,42 +996,46 @@ const KanbanBoard = () => {
                   <span>{clientInfo.name}</span>
                 </div>
               )}
-
-              {/* Valor editável inline */}
-              {editingValue === deal.id ? (
-                <div className="mt-2">
-                  <Input
-                    type="number"
-                    value={tempValue}
-                    onChange={(e) => setTempValue(e.target.value)}
-                    className="text-sm"
-                    onBlur={() => handleSaveValue(deal.id, stage.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleSaveValue(deal.id, stage.id);
-                      } else if (e.key === 'Escape') {
-                        handleCancelEdit();
-                      }
-                    }}
-                    autoFocus
-                  />
-                </div>
-              ) : (
-                deal.value && (
-                  <div 
-                    className="flex items-center gap-1 mt-2 text-xs text-slate-500 cursor-pointer hover:bg-slate-50 p-1 rounded"
-                    onDoubleClick={() => !isClientView && handleEditValue(deal.id, deal.value)}
-                  >
-                    <span className="font-medium text-green-600">
-                      {getFormattedValue(deal.value)}
-                    </span>
-                  </div>
-                )
-              )}
               
               {/* Rest of the card content when expanded */}
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+                  {/* Valor editável inline - só aparece quando expandido */}
+                  {editingValue === deal.id ? (
+                    <div>
+                      <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+                      <Input
+                        type="number"
+                        value={tempValue}
+                        onChange={(e) => setTempValue(e.target.value)}
+                        className="text-sm"
+                        onBlur={() => handleSaveValue(deal.id, stage.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveValue(deal.id, stage.id);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          }
+                        }}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    deal.value && (
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+                        <div 
+                          className="text-sm text-slate-600 cursor-pointer hover:bg-slate-50 p-1 rounded"
+                          onDoubleClick={() => !isClientView && handleEditValue(deal.id, deal.value)}
+                        >
+                          <span className="font-medium text-green-600">
+                            {getFormattedValue(deal.value)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  )}
+
                   {/* Confidential Information */}
                   <div className="bg-slate-50 rounded p-2">
                     <div className="flex items-center justify-between mb-1">
