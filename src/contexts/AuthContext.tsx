@@ -1,16 +1,18 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
-interface User {
+interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'client';
-  clientId?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
@@ -26,113 +28,110 @@ export const useAuth = () => {
   return context;
 };
 
-// Mock users database with hashed password references
-const mockUsers: (User & { passwordHash: string })[] = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@daviflow.com',
-    role: 'admin',
-    passwordHash: 'demo_hash_123456' // In real app, this would be a proper bcrypt hash
-  },
-  {
-    id: '2',
-    name: 'João Silva',
-    email: 'joao@techcorp.com',
-    role: 'client',
-    clientId: 'techcorp',
-    passwordHash: 'demo_hash_123456'
-  },
-  {
-    id: '3',
-    name: 'Maria Santos',
-    email: 'maria@startupxyz.com',
-    role: 'client',
-    clientId: 'startupxyz',
-    passwordHash: 'demo_hash_123456'
-  },
-  {
-    id: '4',
-    name: 'Pedro Oliveira',
-    email: 'pedro@abccorp.com',
-    role: 'client',
-    clientId: 'abccorp',
-    passwordHash: 'demo_hash_123456'
-  }
-];
-
-// Simple password validation function (in real app, use bcrypt)
-const validatePassword = (inputPassword: string, storedHash: string): boolean => {
-  // For demo purposes, we'll check against the demo password
-  // In a real application, you would use bcrypt.compare()
-  return storedHash === 'demo_hash_123456' && inputPassword === '123456';
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem('daviflow_user');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        // Validate the saved user data
-        if (parsedUser && parsedUser.id && parsedUser.email) {
-          setUser(parsedUser);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event, session?.user?.id);
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile from our profiles table
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (error) {
+              console.error('Error fetching profile:', error);
+              setUser(null);
+            } else {
+              setUser(profile);
+            }
+          } catch (error) {
+            console.error('Error in auth state change:', error);
+            setUser(null);
+          }
         } else {
-          localStorage.removeItem('daviflow_user');
+          setUser(null);
         }
-      } catch (error) {
-        console.error('Error parsing saved user data:', error);
-        localStorage.removeItem('daviflow_user');
+        
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.id);
+      // The onAuthStateChange will handle setting the user
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Input validation
-    if (!email || !password) {
-      setIsLoading(false);
-      return false;
-    }
+    try {
+      // Input validation
+      if (!email || !password) {
+        setIsLoading(false);
+        return false;
+      }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setIsLoading(false);
+        return false;
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      });
+      
+      if (error) {
+        console.error('Login error:', error);
+        setIsLoading(false);
+        return false;
+      }
+
+      if (data.user) {
+        // Session and user will be set by the auth state change listener
+        return true;
+      }
+      
+      setIsLoading(false);
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
       setIsLoading(false);
       return false;
     }
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Find user and validate password
-    const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (foundUser && validatePassword(password, foundUser.passwordHash)) {
-      const { passwordHash, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('daviflow_user', JSON.stringify(userWithoutPassword));
-      setIsLoading(false);
-      return true;
-    }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('daviflow_user');
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      // Session and user will be cleared by the auth state change listener
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
