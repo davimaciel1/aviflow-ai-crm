@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,8 @@ interface Client {
 }
 
 const ClientsList = () => {
-  const [clients, setClients] = useState<Client[]>([
+  // Dados iniciais dos clientes
+  const initialClients: Client[] = [
     {
       id: "1",
       name: "TechCorp Ltd",
@@ -146,8 +147,35 @@ const ClientsList = () => {
       dealsCount: 1,
       users: []
     }
-  ]);
+  ];
 
+  // Função para carregar dados do localStorage
+  const loadClientsFromStorage = (): Client[] => {
+    try {
+      const storedClients = localStorage.getItem('crm-clients');
+      if (storedClients) {
+        console.log('Loading clients from localStorage');
+        return JSON.parse(storedClients);
+      }
+    } catch (error) {
+      console.error('Error loading clients from localStorage:', error);
+    }
+    console.log('Using initial clients data');
+    return initialClients;
+  };
+
+  // Função para salvar dados no localStorage
+  const saveClientsToStorage = (clients: Client[]) => {
+    try {
+      localStorage.setItem('crm-clients', JSON.stringify(clients));
+      console.log('Clients saved to localStorage');
+    } catch (error) {
+      console.error('Error saving clients to localStorage:', error);
+    }
+  };
+
+  const [clients, setClients] = useState<Client[]>(loadClientsFromStorage);
+  
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [newUser, setNewUser] = useState<Partial<ClientUser>>({});
@@ -155,6 +183,11 @@ const ClientsList = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<Partial<Client>>({});
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+
+  // Salvar no localStorage sempre que os clientes mudarem
+  useEffect(() => {
+    saveClientsToStorage(clients);
+  }, [clients]);
 
   const toggleClientExpansion = (clientId: string) => {
     setExpandedClients(prev => {
