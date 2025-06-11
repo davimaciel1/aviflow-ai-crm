@@ -707,11 +707,25 @@ const KanbanBoard = () => {
 
   // Função para adicionar novo deal
   const handleAddNewDeal = () => {
-    if (!newDealData.title.trim() || !newDealData.stageId) {
+    console.log('handleAddNewDeal chamado');
+    console.log('newDealData:', newDealData);
+    console.log('selectedPipeline:', selectedPipeline);
+    console.log('currentPipeline:', currentPipeline);
+    
+    if (!newDealData.title.trim()) {
+      console.log('Erro: título vazio');
+      alert('O título é obrigatório');
+      return;
+    }
+    
+    if (!newDealData.stageId) {
+      console.log('Erro: estágio não selecionado');
+      alert('Selecione um estágio');
       return;
     }
 
     const selectedClient = clients.find(c => c.id === newDealData.clientId);
+    console.log('selectedClient:', selectedClient);
     
     const newDeal: Deal = {
       id: `deal-${Date.now()}`,
@@ -726,12 +740,16 @@ const KanbanBoard = () => {
       notes: []
     };
 
+    console.log('newDeal criado:', newDeal);
+
     setPipelines(prevPipelines => {
-      return prevPipelines.map(pipeline => {
+      console.log('Atualizando pipelines...');
+      const updatedPipelines = prevPipelines.map(pipeline => {
         if (pipeline.id !== selectedPipeline) return pipeline;
 
         const newStages = pipeline.stages.map(stage => {
           if (stage.id === newDealData.stageId) {
+            console.log(`Adicionando deal ao estágio ${stage.id}`);
             return { ...stage, deals: [...stage.deals, newDeal] };
           }
           return stage;
@@ -739,9 +757,13 @@ const KanbanBoard = () => {
 
         return { ...pipeline, stages: newStages };
       });
+      
+      console.log('Pipelines atualizados:', updatedPipelines);
+      return updatedPipelines;
     });
 
     // Limpar formulário e fechar modal
+    console.log('Limpando formulário...');
     setNewDealData({
       title: "",
       description: "",
@@ -751,6 +773,7 @@ const KanbanBoard = () => {
       stageId: ""
     });
     setIsAddDealDialogOpen(false);
+    console.log('Modal fechado e formulário limpo');
   };
 
   const getPriorityColor = (priority: string) => {
@@ -867,9 +890,15 @@ const KanbanBoard = () => {
         
         {!isClientView && (
           <div className="flex gap-2">
-            <Dialog open={isAddDealDialogOpen} onOpenChange={setIsAddDealDialogOpen}>
+            <Dialog open={isAddDealDialogOpen} onOpenChange={(open) => {
+              console.log('Dialog state changed:', open);
+              setIsAddDealDialogOpen(open);
+            }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => {
+                  console.log('Botão Novo Deal clicado');
+                  setIsAddDealDialogOpen(true);
+                }}>
                   <Plus className="h-4 w-4 mr-1" />
                   Novo Deal
                 </Button>
@@ -886,7 +915,10 @@ const KanbanBoard = () => {
                     <label className="text-sm font-medium">Título *</label>
                     <Input
                       value={newDealData.title}
-                      onChange={(e) => setNewDealData({ ...newDealData, title: e.target.value })}
+                      onChange={(e) => {
+                        console.log('Título alterado:', e.target.value);
+                        setNewDealData({ ...newDealData, title: e.target.value });
+                      }}
                       placeholder="Nome do deal ou projeto"
                     />
                   </div>
@@ -905,7 +937,10 @@ const KanbanBoard = () => {
                     <label className="text-sm font-medium">Cliente</label>
                     <Select
                       value={newDealData.clientId}
-                      onValueChange={(value) => setNewDealData({ ...newDealData, clientId: value })}
+                      onValueChange={(value) => {
+                        console.log('Cliente selecionado:', value);
+                        setNewDealData({ ...newDealData, clientId: value });
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um cliente" />
@@ -918,72 +953,6 @@ const KanbanBoard = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">ou</span>
-                      <Dialog open={isAddClientDialogOpen} onOpenChange={setIsAddClientDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Plus className="h-3 w-3 mr-1" />
-                            Novo Cliente
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Novo Cliente</DialogTitle>
-                            <DialogDescription>
-                              Adicione um novo cliente ao sistema
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-2">
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Nome *</label>
-                              <Input
-                                value={newClientData.name}
-                                onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })}
-                                placeholder="Nome do contato"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Empresa *</label>
-                              <Input
-                                value={newClientData.company}
-                                onChange={(e) => setNewClientData({ ...newClientData, company: e.target.value })}
-                                placeholder="Nome da empresa"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Email *</label>
-                              <Input
-                                value={newClientData.email}
-                                onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
-                                placeholder="email@empresa.com"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Telefone</label>
-                              <Input
-                                value={newClientData.phone}
-                                onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                                placeholder="(00) 00000-0000"
-                              />
-                            </div>
-                            
-                            <div className="flex justify-end gap-2">
-                              <Button variant="outline" onClick={() => setIsAddClientDialogOpen(false)}>
-                                Cancelar
-                              </Button>
-                              <Button onClick={handleAddNewClient}>
-                                Adicionar Cliente
-                              </Button>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -1018,7 +987,10 @@ const KanbanBoard = () => {
                     <label className="text-sm font-medium">Estágio *</label>
                     <Select
                       value={newDealData.stageId}
-                      onValueChange={(value) => setNewDealData({ ...newDealData, stageId: value })}
+                      onValueChange={(value) => {
+                        console.log('Estágio selecionado:', value);
+                        setNewDealData({ ...newDealData, stageId: value });
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um estágio" />
@@ -1034,10 +1006,16 @@ const KanbanBoard = () => {
                   </div>
                   
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsAddDealDialogOpen(false)}>
+                    <Button variant="outline" onClick={() => {
+                      console.log('Cancelar clicado');
+                      setIsAddDealDialogOpen(false);
+                    }}>
                       Cancelar
                     </Button>
-                    <Button onClick={handleAddNewDeal}>
+                    <Button onClick={() => {
+                      console.log('Adicionar Deal clicado');
+                      handleAddNewDeal();
+                    }}>
                       Adicionar Deal
                     </Button>
                   </div>
