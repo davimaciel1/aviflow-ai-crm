@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,17 +12,19 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit,
+  MoreHorizontal,
+  Lock
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { useKanbanConfig } from "@/hooks/useKanbanConfig";
-import KanbanConfigPanel from "./KanbanConfigPanel";
 
 const KanbanBoard = () => {
   const { user } = useAuth();
   const isClientView = user?.role === 'client';
-  const { config, updateCardWidth } = useKanbanConfig();
+  const { config } = useKanbanConfig();
   
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [showConfidential, setShowConfidential] = useState<Set<string>>(new Set());
@@ -32,20 +33,22 @@ const KanbanBoard = () => {
   const [deals, setDeals] = useState([
     {
       id: '1',
-      title: 'Desenvolvimento de App Mobile',
-      client: 'Petz',
-      company: 'Petz SA',
+      title: 'Sistema ERP - TechCorp',
+      client: 'TechCorp',
+      company: 'TechCorp Ltd',
       stage: 'prospecting',
       value: 'R$ 50.000',
       nextContact: '2024-03-15',
       avatar: '/petz-logo.png',
-      description: 'Criação de aplicativo para agendamento de serviços e compra de produtos.',
+      description: 'Implementação de sistema ERP completo. Implementação de sistema',
       phone: '(11) 98765-4321',
-      email: 'contato@petz.com.br',
+      email: 'contato@techcorp.com',
       budget: 'R$ 60.000',
-      decisionMaker: 'Carlos Eduardo',
-      competitors: 'Cobasi',
-      notes: 'Cliente busca inovação e experiência do usuário diferenciada.'
+      decisionMaker: 'João Silva',
+      competitors: 'Oracle',
+      notes: 'Margem: 45% - Concorrente: Oracle',
+      confidentialNotes: 'Informações confidenciais sobre orçamento e estratégia',
+      progress: 45
     },
     {
       id: '2',
@@ -62,7 +65,9 @@ const KanbanBoard = () => {
       budget: 'R$ 35.000',
       decisionMaker: 'Ana Beatriz',
       competitors: 'Heineken',
-      notes: 'Foco em aumentar o reconhecimento da marca e as vendas online.'
+      notes: 'Foco em aumentar o reconhecimento da marca.',
+      confidentialNotes: 'Cliente tem orçamento maior disponível',
+      progress: 30
     },
     {
       id: '3',
@@ -79,41 +84,9 @@ const KanbanBoard = () => {
       budget: 'R$ 90.000',
       decisionMaker: 'Frederico Trajano',
       competitors: 'Via Varejo',
-      notes: 'Necessidade de centralizar informações e melhorar o atendimento.'
-    },
-    {
-      id: '4',
-      title: 'Desenvolvimento de E-commerce',
-      client: 'Casas Bahia',
-      company: 'Via Varejo SA',
-      stage: 'negotiation',
-      value: 'R$ 120.000',
-      nextContact: '2024-03-30',
-      avatar: '/casasbahia-logo.png',
-      description: 'Criação de loja virtual com funcionalidades avançadas.',
-      phone: '(11) 97777-6666',
-      email: 'ecommerce@casasbahia.com.br',
-      budget: 'R$ 130.000',
-      decisionMaker: 'Roberto Fulcherberguer',
-      competitors: 'Magazine Luiza',
-      notes: 'Busca por plataforma escalável e design atraente.'
-    },
-    {
-      id: '5',
-      title: 'Campanha Publicitária Online',
-      client: 'Ponto Frio',
-      company: 'Via Varejo SA',
-      stage: 'closing',
-      value: 'R$ 40.000',
-      nextContact: '2024-04-05',
-      avatar: '/pontofrio-logo.png',
-      description: 'Criação e gestão de campanhas de anúncios online.',
-      phone: '(21) 96666-5555',
-      email: 'marketingdigital@pontofrio.com.br',
-      budget: 'R$ 45.000',
-      decisionMaker: 'Paulo Madureira',
-      competitors: 'Ricardo Eletro',
-      notes: 'Objetivo de aumentar o tráfego e as conversões no site.'
+      notes: 'Necessidade de centralizar informações.',
+      confidentialNotes: 'Decisão final depende do board',
+      progress: 70
     }
   ]);
 
@@ -127,47 +100,14 @@ const KanbanBoard = () => {
       value: 'R$ 10.000',
       nextContact: '2024-04-10',
       avatar: '/placeholder-avatar.jpg',
-      description: 'Análise e otimização de SEO para melhorar o ranking no Google.',
+      description: 'Análise e otimização de SEO para melhorar o ranking.',
       phone: '(11) 95555-4444',
       email: 'cliente1@empresaA.com.br',
       budget: 'R$ 12.000',
       decisionMaker: 'João Silva',
       competitors: 'Nenhum',
-      notes: 'Cliente busca aumentar a visibilidade online.'
-    },
-    {
-      id: '7',
-      title: 'Criação de Conteúdo para Blog',
-      client: 'Cliente 2',
-      company: 'Empresa B',
-      stage: 'qualification',
-      value: 'R$ 8.000',
-      nextContact: '2024-04-15',
-      avatar: '/placeholder-avatar.jpg',
-      description: 'Produção de artigos e posts para blog corporativo.',
-      phone: '(21) 94444-3333',
-      email: 'cliente2@empresaB.com.br',
-      budget: 'R$ 9.000',
-      decisionMaker: 'Maria Souza',
-      competitors: 'Nenhum',
-      notes: 'Cliente busca atrair mais visitantes e leads.'
-    },
-    {
-      id: '8',
-      title: 'Gestão de Redes Sociais',
-      client: 'Cliente 1',
-      company: 'Empresa A',
-      stage: 'closing',
-      value: 'R$ 15.000',
-      nextContact: '2024-04-20',
-      avatar: '/placeholder-avatar.jpg',
-      description: 'Administração e criação de conteúdo para redes sociais.',
-      phone: '(11) 95555-4444',
-      email: 'cliente1@empresaA.com.br',
-      budget: 'R$ 17.000',
-      decisionMaker: 'João Silva',
-      competitors: 'Nenhum',
-      notes: 'Cliente busca fortalecer a presença online e engajar o público.'
+      notes: 'Cliente busca aumentar a visibilidade online.',
+      progress: 25
     }
   ]);
 
@@ -270,86 +210,59 @@ const KanbanBoard = () => {
             {...provided.dragHandleProps}
             className={`mb-3 ${snapshot.isDragging ? 'rotate-3 scale-105' : ''} transition-transform`}
           >
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardHeader 
-                className="pb-2 px-3 py-2"
-                onClick={() => toggleCard(deal.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Avatar className="h-6 w-6 flex-shrink-0">
-                      <AvatarImage src={deal.avatar} />
-                      <AvatarFallback className="text-xs">
-                        {deal.client.split(' ').map((n: string) => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <CardTitle className="text-sm font-medium truncate">{deal.title}</CardTitle>
-                      <p className="text-xs text-muted-foreground truncate">{deal.company}</p>
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500">
+              <CardHeader className="pb-2 px-3 py-3">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-sm font-semibold text-gray-900 leading-tight mb-1">
+                      {deal.title}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar className="h-5 w-5 flex-shrink-0">
+                        <AvatarImage src={deal.avatar} />
+                        <AvatarFallback className="text-xs bg-gray-200">
+                          {deal.client.split(' ').map((n: string) => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs text-gray-600 truncate">{deal.client}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Badge variant="secondary" className="text-xs px-1 py-0">
-                      {deal.value}
-                    </Badge>
-                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                  </div>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0">
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
                 </div>
-                <div className="text-xs text-muted-foreground">{deal.client}</div>
-              </CardHeader>
-              
-              {isExpanded && (
-                <CardContent className="pt-0 px-3 pb-3">
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      {deal.description}
-                    </p>
-                    
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs">{deal.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs">{deal.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs">Próximo contato: {deal.nextContact}</span>
-                      </div>
+                
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-600 line-clamp-2">
+                    {deal.description}
+                  </p>
+                  
+                  {!isClientView && deal.notes && (
+                    <div className="flex items-center gap-2 p-2 bg-red-50 rounded text-xs border border-red-200">
+                      <Lock className="h-3 w-3 text-red-600 flex-shrink-0" />
+                      <span className="text-red-700 font-medium">Confidencial</span>
                     </div>
-
-                    {!isClientView && (
-                      <div className="pt-2 border-t">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium">Informações Confidenciais</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleConfidential(deal.id);
-                            }}
-                            className="h-6 w-6 p-0"
-                          >
-                            {showConfidentialInfo ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </Button>
-                        </div>
-                        
-                        {showConfidentialInfo && (
-                          <div className="space-y-1">
-                            <p className="text-xs"><strong>Orçamento:</strong> {deal.budget}</p>
-                            <p className="text-xs"><strong>Decisor:</strong> {deal.decisionMaker}</p>
-                            <p className="text-xs"><strong>Concorrentes:</strong> {deal.competitors}</p>
-                            <p className="text-xs"><strong>Anotações:</strong> {deal.notes}</p>
-                          </div>
-                        )}
-                      </div>
+                  )}
+                  
+                  <div className="space-y-1">
+                    {deal.notes && (
+                      <p className="text-xs text-gray-700">{deal.notes}</p>
                     )}
                   </div>
-                </CardContent>
-              )}
+                  
+                  <div className="flex items-center justify-between pt-2">
+                    <Badge variant="secondary" className="text-xs px-2 py-1 bg-blue-100 text-blue-800">
+                      {deal.value}
+                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <div className="text-xs text-gray-500">1</div>
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
             </Card>
           </div>
         )}
@@ -358,50 +271,42 @@ const KanbanBoard = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <KanbanConfigPanel
-        cardWidth={config.cardWidth}
-        minWidth={config.minCardWidth}
-        maxWidth={config.maxCardWidth}
-        onWidthChange={updateCardWidth}
-      />
-      
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {stages.map((stage) => (
-            <div 
-              key={stage.id} 
-              className="flex-shrink-0"
-              style={{ width: `${config.cardWidth}px` }}
-            >
-              <div className={`rounded-lg p-3 ${stage.color} mb-3`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm">{stage.title}</h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {getDealsForStage(stage.id).length}
-                  </Badge>
-                </div>
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {stages.map((stage) => (
+          <div 
+            key={stage.id} 
+            className="flex-shrink-0"
+            style={{ width: `${config.cardWidth}px` }}
+          >
+            <div className={`rounded-lg p-3 ${stage.color} mb-3`}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-gray-800">{stage.title}</h3>
+                <Badge variant="secondary" className="text-xs bg-white">
+                  {getDealsForStage(stage.id).length}
+                </Badge>
               </div>
-              
-              <Droppable droppableId={stage.id}>
-                {(provided, snapshot) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className={`space-y-2 max-h-96 overflow-y-auto min-h-32 p-2 rounded-lg ${
-                      snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''
-                    } transition-colors`}
-                  >
-                    {getDealsForStage(stage.id).map((deal, index) => renderDealCard(deal, index))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
             </div>
-          ))}
-        </div>
-      </DragDropContext>
-    </div>
+            
+            <Droppable droppableId={stage.id}>
+              {(provided, snapshot) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className={`space-y-2 overflow-y-auto min-h-32 p-2 rounded-lg ${
+                    snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : 'bg-gray-50'
+                  } transition-colors`}
+                  style={{ maxHeight: `${config.cardHeight}px` }}
+                >
+                  {getDealsForStage(stage.id).map((deal, index) => renderDealCard(deal, index))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </div>
+        ))}
+      </div>
+    </DragDropContext>
   );
 };
 
