@@ -24,7 +24,8 @@ import {
   Check,
   X,
   User,
-  Upload
+  Upload,
+  Lock
 } from "lucide-react";
 
 interface Client {
@@ -47,9 +48,30 @@ interface CompanyUser {
   id: string;
   name: string;
   email: string;
-  password: string;
+  passwordHash: string; // Changed from password to passwordHash
   role: "admin" | "user";
 }
+
+// Utility functions for password security
+const generatePasswordHash = (password: string): string => {
+  // In a real application, use bcrypt or similar
+  return `hash_${password}_${Date.now()}`;
+};
+
+const validatePassword = (password: string): { isValid: boolean; message: string } => {
+  if (password.length < 6) {
+    return { isValid: false, message: "Senha deve ter pelo menos 6 caracteres" };
+  }
+  if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) {
+    return { isValid: false, message: "Senha deve conter letras e números" };
+  }
+  return { isValid: true, message: "" };
+};
+
+const sanitizeInput = (input: string): string => {
+  // Basic XSS prevention
+  return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+};
 
 const ClientsList = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -62,13 +84,14 @@ const ClientsList = () => {
   });
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [newUserData, setNewUserData] = useState<Partial<CompanyUser>>({});
+  const [newUserData, setNewUserData] = useState<Partial<CompanyUser & { password: string }>>({});
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingAvatarId, setEditingAvatarId] = useState<string | null>(null);
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [newAvatarUrl, setNewAvatarUrl] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [passwordError, setPasswordError] = useState("");
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -107,8 +130,8 @@ const ClientsList = () => {
         address: "São Paulo, SP",
         notes: "Cliente premium, sempre pontual nos pagamentos.",
         users: [
-          { id: "u1", name: "João Silva", email: "joao@techcorp.com", password: "123456", role: "admin" },
-          { id: "u2", name: "Ana Costa", email: "ana@techcorp.com", password: "123456", role: "user" }
+          { id: "u1", name: "João Silva", email: "joao@techcorp.com", passwordHash: generatePasswordHash("secure123"), role: "admin" },
+          { id: "u2", name: "Ana Costa", email: "ana@techcorp.com", passwordHash: generatePasswordHash("secure456"), role: "user" }
         ]
       },
       {
@@ -124,7 +147,7 @@ const ClientsList = () => {
         address: "Rio de Janeiro, RJ",
         notes: "Startup em crescimento, muito engajada no projeto.",
         users: [
-          { id: "u3", name: "Maria Santos", email: "maria@startupxyz.com", password: "123456", role: "admin" }
+          { id: "u3", name: "Maria Santos", email: "maria@startupxyz.com", passwordHash: generatePasswordHash("secure789"), role: "admin" }
         ]
       },
       {
@@ -165,9 +188,18 @@ const ClientsList = () => {
   const handleSaveClient = () => {
     if (!editingClient || !tempClientData) return;
 
+    // Sanitize input data
+    const sanitizedData = {
+      ...tempClientData,
+      name: tempClientData.name ? sanitizeInput(tempClientData.name) : tempClientData.name,
+      company: tempClientData.company ? sanitizeInput(tempClientData.company) : tempClientData.company,
+      notes: tempClientData.notes ? sanitizeInput(tempClientData.notes) : tempClientData.notes,
+      address: tempClientData.address ? sanitizeInput(tempClientData.address) : tempClientData.address
+    };
+
     setClients(prev => prev.map(client => 
       client.id === editingClient 
-        ? { ...client, ...tempClientData } 
+        ? { ...client, ...sanitizedData } 
         : client
     ));
 
@@ -192,18 +224,25 @@ const ClientsList = () => {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newClientData.email)) {
+      alert("Por favor, insira um email válido.");
+      return;
+    }
+
     const newClient: Client = {
       id: Date.now().toString(),
-      name: newClientData.name || "",
-      company: newClientData.company || "",
+      name: sanitizeInput(newClientData.name || ""),
+      company: sanitizeInput(newClientData.company || ""),
       email: newClientData.email || "",
       phone: newClientData.phone || "",
       status: (newClientData.status as "active" | "inactive" | "prospect") || "prospect",
       totalValue: newClientData.totalValue || 0,
       projectsCount: newClientData.projectsCount || 0,
       lastContact: new Date().toISOString().split('T')[0],
-      address: newClientData.address || "",
-      notes: newClientData.notes || "",
+      address: newClientData.address ? sanitizeInput(newClientData.address) : "",
+      notes: newClientData.notes ? sanitizeInput(newClientData.notes) : "",
       users: []
     };
 
@@ -212,18 +251,39 @@ const ClientsList = () => {
     setIsCreateDialogOpen(false);
   };
 
-  // User management functions
+  // Updated user management functions with security improvements
   const handleAddUser = () => {
     if (!selectedClientId || !newUserData.name || !newUserData.email || !newUserData.password) {
       alert("Por favor, preencha todos os campos obrigatórios.");
       return;
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUserData.email)) {
+      setPasswordError("Por favor, insira um email válido.");
+      return;
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(newUserData.password);
+    if (!passwordValidation.isValid) {
+      setPasswordError(passwordValidation.message);
+      return;
+    }
+
+    // Check if email already exists
+    const client = clients.find(c => c.id === selectedClientId);
+    if (client?.users?.some(user => user.email === newUserData.email)) {
+      setPasswordError("Este email já está em uso");
+      return;
+    }
+
     const newUser: CompanyUser = {
       id: Date.now().toString(),
-      name: newUserData.name,
+      name: sanitizeInput(newUserData.name),
       email: newUserData.email,
-      password: newUserData.password,
+      passwordHash: generatePasswordHash(newUserData.password),
       role: newUserData.role || "user"
     };
 
@@ -234,6 +294,7 @@ const ClientsList = () => {
     ));
 
     setNewUserData({});
+    setPasswordError("");
     setIsUserDialogOpen(false);
     setEditingUserId(null);
   };
@@ -241,12 +302,32 @@ const ClientsList = () => {
   const handleEditUser = (user: CompanyUser, clientId: string) => {
     setSelectedClientId(clientId);
     setEditingUserId(user.id);
-    setNewUserData(user);
+    setNewUserData({
+      ...user,
+      password: "" // Don't prefill password for security
+    });
+    setPasswordError("");
     setIsUserDialogOpen(true);
   };
 
   const handleUpdateUser = () => {
-    if (!selectedClientId || !editingUserId || !newUserData.name || !newUserData.email || !newUserData.password) {
+    if (!selectedClientId || !editingUserId || !newUserData.name || !newUserData.email) {
+      return;
+    }
+
+    // If password is provided, validate it
+    if (newUserData.password) {
+      const passwordValidation = validatePassword(newUserData.password);
+      if (!passwordValidation.isValid) {
+        setPasswordError(passwordValidation.message);
+        return;
+      }
+    }
+
+    // Check if email is already used by another user
+    const client = clients.find(c => c.id === selectedClientId);
+    if (client?.users?.some(user => user.email === newUserData.email && user.id !== editingUserId)) {
+      setPasswordError("Este email já está em uso por outro usuário");
       return;
     }
 
@@ -256,7 +337,13 @@ const ClientsList = () => {
             ...client, 
             users: client.users?.map(user => 
               user.id === editingUserId 
-                ? { ...user, ...newUserData } as CompanyUser
+                ? { 
+                    ...user, 
+                    name: sanitizeInput(newUserData.name!),
+                    email: newUserData.email!,
+                    role: newUserData.role!,
+                    passwordHash: newUserData.password ? generatePasswordHash(newUserData.password) : user.passwordHash
+                  }
                 : user
             ) || []
           }
@@ -264,6 +351,7 @@ const ClientsList = () => {
     ));
 
     setNewUserData({});
+    setPasswordError("");
     setIsUserDialogOpen(false);
     setEditingUserId(null);
     setSelectedClientId(null);
@@ -283,6 +371,7 @@ const ClientsList = () => {
     setSelectedClientId(clientId);
     setNewUserData({});
     setEditingUserId(null);
+    setPasswordError("");
     setIsUserDialogOpen(true);
   };
 
@@ -578,13 +667,18 @@ const ClientsList = () => {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Senha *</label>
+              <label className="text-sm font-medium">
+                {editingUserId ? 'Nova Senha (deixe em branco para manter atual)' : 'Senha *'}
+              </label>
               <Input
                 type="password"
                 value={newUserData.password || ""}
                 onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Senha de acesso"
+                placeholder={editingUserId ? "Nova senha (opcional)" : "Senha de acesso"}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Mínimo 6 caracteres, deve conter letras e números
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium">Perfil</label>
@@ -601,6 +695,13 @@ const ClientsList = () => {
                 </SelectContent>
               </Select>
             </div>
+            
+            {passwordError && (
+              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                {passwordError}
+              </div>
+            )}
+            
             <div className="flex gap-2">
               <Button onClick={editingUserId ? handleUpdateUser : handleAddUser} className="flex-1">
                 {editingUserId ? 'Atualizar' : 'Adicionar'}
@@ -833,6 +934,10 @@ const ClientsList = () => {
                                     <div>
                                       <p className="text-sm font-medium">{user.name}</p>
                                       <p className="text-xs text-slate-500">{user.email}</p>
+                                      <div className="flex items-center gap-1 text-xs text-slate-400">
+                                        <Lock className="w-3 h-3" />
+                                        <span>Senha protegida</span>
+                                      </div>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">

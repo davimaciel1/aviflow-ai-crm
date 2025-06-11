@@ -18,6 +18,12 @@ const Login = () => {
     e.preventDefault();
     setError("");
 
+    // Basic input validation
+    if (!email || !password) {
+      setError("Por favor, preencha todos os campos");
+      return;
+    }
+
     const success = await login(email, password);
     if (!success) {
       setError("Email ou senha inválidos");
@@ -50,6 +56,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -61,6 +68,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Sua senha"
                 required
+                autoComplete="current-password"
               />
             </div>
             
@@ -82,7 +90,7 @@ const Login = () => {
               <p><strong>Admin:</strong> admin@daviflow.com</p>
               <p><strong>Cliente 1:</strong> joao@techcorp.com</p>
               <p><strong>Cliente 2:</strong> maria@startupxyz.com</p>
-              <p><strong>Senha para todos:</strong> 123456</p>
+              <p><strong>Nota:</strong> Entre em contato com o administrador para obter credenciais</p>
             </div>
           </div>
         </CardContent>
