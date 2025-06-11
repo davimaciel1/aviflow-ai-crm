@@ -31,44 +31,47 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-interface Note {
-  id: string;
-  content: string;
-  author: string;
-  authorRole: 'admin' | 'client';
-  timestamp: string;
-  attachments?: {
-    type: 'photo' | 'video';
-    url: string;
-    name: string;
-  }[];
-}
-
 interface Deal {
   id: string;
   title: string;
-  client: string;
-  clientId: string;
-  companyName: string;
-  contact: string;
-  priority: "low" | "medium" | "high";
   description?: string;
-  confidentialInfo: string;
-  notes: Note[];
+  client: string;
+  clientId?: string;
+  companyName?: string;
+  contact: string;
+  confidentialInfo?: string;
+  priority: "low" | "medium" | "high";
+  stageId: string;
+  notes?: Note[];
   avatar?: string;
 }
 
-interface Column {
+interface Note {
   id: string;
-  title: string;
-  deals: Deal[];
-  color: string;
+  author: string;
+  authorRole: "admin" | "client";
+  content: string;
+  timestamp: string;
+  attachments?: Attachment[];
+}
+
+interface Attachment {
+  type: "photo" | "video";
+  name: string;
+  url: string;
 }
 
 interface Pipeline {
   id: string;
   name: string;
-  columns: Column[];
+  stages: Stage[];
+}
+
+interface Stage {
+  id: string;
+  title: string;
+  color: string;
+  deals: Deal[];
 }
 
 const KanbanBoard = () => {
@@ -87,266 +90,103 @@ const KanbanBoard = () => {
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  // Get clients from localStorage with comprehensive checking
+  // Get clients from localStorage - buscar na chave correta
   const getClientsFromStorage = () => {
     try {
-      console.log('Checking localStorage for clients...');
+      console.log('Buscando clientes no localStorage...');
       
-      // Check all possible keys where clients might be stored
-      const possibleKeys = ['clients', 'clientsList', 'company_clients', 'user_clients'];
-      let clients = [];
-      
-      for (const key of possibleKeys) {
-        const storedData = localStorage.getItem(key);
-        console.log(`Checking key "${key}":`, storedData);
-        
-        if (storedData) {
-          try {
-            const parsedData = JSON.parse(storedData);
-            console.log(`Parsed data for "${key}":`, parsedData);
-            
-            if (Array.isArray(parsedData) && parsedData.length > 0) {
-              clients = parsedData;
-              console.log(`Found clients in key "${key}":`, clients);
-              break;
-            }
-          } catch (parseError) {
-            console.error(`Error parsing data for key "${key}":`, parseError);
+      // Primeiro tentar a chave daviflow_clients que tem os dados corretos
+      const daviflowClients = localStorage.getItem('daviflow_clients');
+      if (daviflowClients) {
+        try {
+          const parsedClients = JSON.parse(daviflowClients);
+          console.log('Clientes encontrados em daviflow_clients:', parsedClients);
+          if (Array.isArray(parsedClients) && parsedClients.length > 0) {
+            return parsedClients.map(client => ({
+              id: client.id,
+              name: client.company || client.name, // usar company como nome principal
+              company: client.company,
+              contact: client.name, // nome da pessoa de contato
+              email: client.email
+            }));
           }
+        } catch (parseError) {
+          console.error('Erro ao fazer parse dos clientes daviflow:', parseError);
+        }
+      }
+
+      // Fallback: tentar crm-clients se não encontrar daviflow_clients
+      const crmClients = localStorage.getItem('crm-clients');
+      if (crmClients) {
+        try {
+          const parsedClients = JSON.parse(crmClients);
+          console.log('Clientes encontrados em crm-clients:', parsedClients);
+          if (Array.isArray(parsedClients) && parsedClients.length > 0) {
+            return parsedClients.map(client => ({
+              id: client.id,
+              name: client.name,
+              company: client.name,
+              contact: client.contactEmail || '',
+              email: client.contactEmail || ''
+            }));
+          }
+        } catch (parseError) {
+          console.error('Erro ao fazer parse dos clientes crm:', parseError);
         }
       }
       
-      // Also check if there are any keys that contain 'client' in the name
-      console.log('All localStorage keys:', Object.keys(localStorage));
-      const allKeys = Object.keys(localStorage);
-      const clientKeys = allKeys.filter(key => key.toLowerCase().includes('client'));
-      console.log('Keys containing "client":', clientKeys);
-      
-      clientKeys.forEach(key => {
-        if (!possibleKeys.includes(key)) {
-          const data = localStorage.getItem(key);
-          console.log(`Additional client key "${key}":`, data);
-        }
-      });
-      
-      return clients;
+      console.log('Nenhum cliente encontrado em localStorage');
+      return [];
     } catch (error) {
-      console.error('Error loading clients:', error);
+      console.error('Erro ao carregar clientes:', error);
       return [];
     }
   };
 
   const clients = getClientsFromStorage();
-  console.log('Final clients array for dropdown:', clients);
+  console.log('Array final de clientes para dropdown:', clients);
+  console.log('Quantidade de clientes:', clients.length);
 
-  // Lista de empresas disponíveis
-  const companies = [
-    { id: "techcorp", name: "TechCorp Ltd" },
-    { id: "startupxyz", name: "StartupXYZ" },
-    { id: "abccorp", name: "ABC Corporation" },
-    { id: "retailplus", name: "RetailPlus" },
-    { id: "datacorp", name: "DataCorp" },
-    { id: "shopmais", name: "ShopMais" }
-  ];
-
+  // Example pipelines and stages data
   const [pipelines, setPipelines] = useState<Pipeline[]>([
     {
       id: "sales",
-      name: "Pipeline de Vendas",
-      columns: [
+      name: "Sales Pipeline",
+      stages: [
         {
-          id: "prospecting",
-          title: "Prospecção",
-          color: "bg-slate-100",
-          deals: [
-            {
-              id: "1",
-              title: "Sistema ERP - TechCorp",
-              client: "TechCorp Ltd",
-              clientId: "techcorp",
-              companyName: "TechCorp Ltd",
-              contact: "João Silva",
-              priority: "high",
-              description: "Implementação de sistema ERP completo",
-              confidentialInfo: "Margem: 45% - Concorrente: Oracle",
-              notes: [
-                {
-                  id: "note1",
-                  content: "Cliente muito interessado no projeto. Reunião agendada para próxima semana.",
-                  author: "Admin User",
-                  authorRole: "admin",
-                  timestamp: "2024-06-10T10:30:00Z"
-                }
-              ],
-              avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
-            },
-            {
-              id: "2",
-              title: "Consultoria Digital - StartupXYZ",
-              client: "StartupXYZ",
-              clientId: "startupxyz",
-              companyName: "StartupXYZ",
-              contact: "Maria Santos",
-              priority: "medium",
-              description: "Consultoria para transformação digital",
-              confidentialInfo: "Budget máximo: R$ 100k",
-              notes: [],
-              avatar: undefined
-            }
-          ]
-        },
-        {
-          id: "qualification",
-          title: "Qualificação",
-          color: "bg-blue-50",
-          deals: [
-            {
-              id: "3",
-              title: "Website Institucional - ABC Corp",
-              client: "ABC Corporation",
-              clientId: "abccorp",
-              companyName: "ABC Corporation",
-              contact: "Pedro Oliveira",
-              priority: "medium",
-              description: "Desenvolvimento de website corporativo",
-              confidentialInfo: "Decisor: CEO Pedro",
-              notes: [],
-              avatar: undefined
-            }
-          ]
-        },
-        {
-          id: "proposal",
-          title: "Proposta",
-          color: "bg-yellow-50",
-          deals: [
-            {
-              id: "4",
-              title: "App Mobile - RetailPlus",
-              client: "RetailPlus",
-              clientId: "retailplus",
-              companyName: "RetailPlus",
-              contact: "Ana Costa",
-              priority: "high",
-              description: "Aplicativo mobile para e-commerce",
-              confidentialInfo: "Reunião de fechamento agendada para sexta",
-              notes: [],
-              avatar: undefined
-            }
-          ]
-        },
-        {
-          id: "negotiation",
-          title: "Negociação",
-          color: "bg-orange-50",
-          deals: [
-            {
-              id: "5",
-              title: "Dashboard Analytics - DataCorp",
-              client: "DataCorp",
-              clientId: "datacorp",
-              companyName: "DataCorp",
-              contact: "Carlos Lima",
-              priority: "high",
-              description: "Dashboard para análise de dados",
-              confidentialInfo: "Aguardando aprovação do board",
-              notes: [],
-              avatar: undefined
-            }
-          ]
-        },
-        {
-          id: "won",
-          title: "Fechados",
-          color: "bg-green-50",
-          deals: [
-            {
-              id: "6",
-              title: "E-commerce - ShopMais",
-              client: "ShopMais",
-              clientId: "shopmais",
-              companyName: "ShopMais",
-              contact: "Lucas Ferreira",
-              priority: "medium",
-              description: "Plataforma de e-commerce completa",
-              confidentialInfo: "Projeto finalizado com sucesso",
-              notes: [],
-              avatar: undefined
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: "support",
-      name: "Pipeline de Suporte",
-      columns: [
-        {
-          id: "new",
-          title: "Novos",
-          color: "bg-red-50",
-          deals: [
-            {
-              id: "7",
-              title: "Bug Sistema ERP",
-              client: "TechCorp Ltd",
-              clientId: "techcorp",
-              companyName: "TechCorp Ltd",
-              contact: "João Silva",
-              priority: "high",
-              description: "Correção de bug crítico no sistema",
-              confidentialInfo: "Bug afeta módulo financeiro",
-              notes: [],
-              avatar: undefined
-            }
-          ]
-        },
-        {
-          id: "in_progress",
-          title: "Em Andamento",
-          color: "bg-yellow-50",
+          id: "stage1",
+          title: "Prospects",
+          color: "bg-blue-100",
           deals: []
         },
         {
-          id: "testing",
-          title: "Testando",
-          color: "bg-blue-50",
+          id: "stage2",
+          title: "Negotiation",
+          color: "bg-yellow-100",
           deals: []
         },
         {
-          id: "resolved",
-          title: "Resolvidos",
-          color: "bg-green-50",
+          id: "stage3",
+          title: "Closed",
+          color: "bg-green-100",
           deals: []
         }
       ]
     },
     {
-      id: "projects",
-      name: "Pipeline de Projetos",
-      columns: [
+      id: "marketing",
+      name: "Marketing Pipeline",
+      stages: [
         {
-          id: "planning",
-          title: "Planejamento",
-          color: "bg-purple-50",
+          id: "stage4",
+          title: "Leads",
+          color: "bg-purple-100",
           deals: []
         },
         {
-          id: "development",
-          title: "Desenvolvimento",
-          color: "bg-blue-50",
-          deals: []
-        },
-        {
-          id: "testing_proj",
-          title: "Testes",
-          color: "bg-yellow-50",
-          deals: []
-        },
-        {
-          id: "delivery",
-          title: "Entrega",
-          color: "bg-green-50",
+          id: "stage5",
+          title: "Qualified",
+          color: "bg-pink-100",
           deals: []
         }
       ]
@@ -355,227 +195,88 @@ const KanbanBoard = () => {
 
   const currentPipeline = pipelines.find(p => p.id === selectedPipeline) || pipelines[0];
 
-  // Filter deals for client view
+  // Helper to get all columns (stages) with deals
   const getFilteredColumns = () => {
-    if (!isClientView || !user?.clientId) {
-      return currentPipeline.columns;
-    }
-
-    return currentPipeline.columns.map(column => ({
-      ...column,
-      deals: column.deals.filter(deal => deal.clientId === user.clientId)
-    }));
+    return currentPipeline.stages;
   };
 
   // Toggle card expansion
-  const toggleCardExpansion = (dealId: string) => {
+  const toggleCardExpansion = (cardId: string) => {
     setExpandedCards(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(dealId)) {
-        newSet.delete(dealId);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
       } else {
-        newSet.add(dealId);
+        newSet.add(cardId);
       }
       return newSet;
     });
   };
 
-  // Stage management functions
-  const handleAddStage = () => {
-    if (!newStageTitle.trim()) return;
-    
-    const newStageId = `stage_${Date.now()}`;
-    const colors = ["bg-slate-100", "bg-blue-50", "bg-yellow-50", "bg-orange-50", "bg-green-50", "bg-purple-50"];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    
-    setPipelines(prev => prev.map(pipeline => {
-      if (pipeline.id === selectedPipeline) {
-        return {
-          ...pipeline,
-          columns: [...pipeline.columns, {
-            id: newStageId,
-            title: newStageTitle,
-            color: randomColor,
-            deals: []
-          }]
-        };
-      }
-      return pipeline;
-    }));
-    
-    setAddingStage(false);
-    setNewStageTitle("");
-  };
+  // Handle drag end for drag and drop
+  const handleDragEnd = (result: DropResult) => {
+    const { source, destination, draggableId } = result;
+    if (!destination) return;
 
-  const handleDeleteStage = (columnId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir este stage? Todos os cards serão movidos para o primeiro stage.")) {
-      setPipelines(prev => prev.map(pipeline => {
-        if (pipeline.id === selectedPipeline) {
-          const columnToDelete = pipeline.columns.find(col => col.id === columnId);
-          const firstColumn = pipeline.columns[0];
-          
-          if (!columnToDelete || !firstColumn || columnId === firstColumn.id) return pipeline;
-          
-          const updatedColumns = pipeline.columns.filter(col => col.id !== columnId);
-          
-          // Move deals from deleted column to first column
-          if (columnToDelete.deals.length > 0) {
-            updatedColumns[0] = {
-              ...updatedColumns[0],
-              deals: [...updatedColumns[0].deals, ...columnToDelete.deals]
-            };
-          }
-          
-          return {
-            ...pipeline,
-            columns: updatedColumns
-          };
-        }
-        return pipeline;
-      }));
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
+      return;
     }
-  };
 
-  // Stage editing functions
-  const handleEditStage = (columnId: string, currentTitle: string) => {
-    setEditingStage(columnId);
-    setTempStageTitle(currentTitle);
-  };
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
 
-  const handleSaveStage = (columnId: string) => {
-    setPipelines(prev => prev.map(pipeline => {
-      if (pipeline.id === selectedPipeline) {
-        return {
-          ...pipeline,
-          columns: pipeline.columns.map(col => 
-            col.id === columnId ? { ...col, title: tempStageTitle } : col
-          )
-        };
-      }
-      return pipeline;
-    }));
-    setEditingStage(null);
-    setTempStageTitle("");
-  };
+        const sourceStageIndex = pipeline.stages.findIndex(s => s.id === source.droppableId);
+        const destStageIndex = pipeline.stages.findIndex(s => s.id === destination.droppableId);
+        if (sourceStageIndex === -1 || destStageIndex === -1) return pipeline;
 
-  const handleCancelStageEdit = () => {
-    setEditingStage(null);
-    setTempStageTitle("");
-  };
+        const sourceStage = pipeline.stages[sourceStageIndex];
+        const destStage = pipeline.stages[destStageIndex];
 
-  // Card editing functions with pipeline selection
-  const handleEditCard = (deal: Deal) => {
-    setEditingCard(deal.id);
-    setTempCardData({
-      title: deal.title,
-      description: deal.description || "",
-      contact: deal.contact,
-      companyName: deal.companyName,
-      clientId: deal.clientId,
-      confidentialInfo: deal.confidentialInfo || "",
-      notes: deal.notes || []
+        const draggedDeal = sourceStage.deals.find(d => d.id === draggableId);
+        if (!draggedDeal) return pipeline;
+
+        // Remove from source
+        const newSourceDeals = Array.from(sourceStage.deals);
+        newSourceDeals.splice(source.index, 1);
+
+        // Add to destination
+        const newDestDeals = Array.from(destStage.deals);
+        newDestDeals.splice(destination.index, 0, { ...draggedDeal, stageId: destStage.id });
+
+        const newStages = [...pipeline.stages];
+        newStages[sourceStageIndex] = { ...sourceStage, deals: newSourceDeals };
+        newStages[destStageIndex] = { ...destStage, deals: newDestDeals };
+
+        return { ...pipeline, stages: newStages };
+      });
     });
-    setIsEditDrawerOpen(true);
   };
 
-  const handleSaveCard = (dealId: string) => {
-    setPipelines(prev => prev.map(pipeline => {
-      if (pipeline.id === selectedPipeline) {
-        return {
-          ...pipeline,
-          columns: pipeline.columns.map(col => ({
-            ...col,
-            deals: col.deals.map(deal => 
-              deal.id === dealId ? { 
-                ...deal, 
-                ...tempCardData,
-                client: tempCardData.companyName || deal.client
-              } : deal
-            )
-          }))
-        };
-      }
-      return pipeline;
-    }));
-    setEditingCard(null);
-    setTempCardData({});
-    setIsEditDrawerOpen(false);
-  };
-
-  const handleAddNote = () => {
-    if (!newNote.trim() || !editingCard || !user) return;
-
-    const note: Note = {
-      id: `note_${Date.now()}`,
-      content: newNote,
-      author: user.name,
-      authorRole: user.role,
-      timestamp: new Date().toISOString()
-    };
-
-    setTempCardData(prev => ({
-      ...prev,
-      notes: [...(prev.notes || []), note]
-    }));
-
-    setNewNote("");
-  };
-
-  const handleFileUpload = (type: 'photo' | 'video') => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = type === 'photo' ? 'image/*' : 'video/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        console.log(`Uploading ${type}:`, file.name);
-        
-        const mockUrl = URL.createObjectURL(file);
-        
-        if (!user) return;
-        
-        const noteWithAttachment: Note = {
-          id: `note_${Date.now()}`,
-          content: `${type === 'photo' ? 'Foto' : 'Vídeo'} adicionado`,
-          author: user.name,
-          authorRole: user.role,
-          timestamp: new Date().toISOString(),
-          attachments: [{
-            type,
-            url: mockUrl,
-            name: file.name
-          }]
-        };
-
-        setTempCardData(prev => ({
-          ...prev,
-          notes: [...(prev.notes || []), noteWithAttachment]
-        }));
-      }
-    };
-    input.click();
-  };
-
-  const handleEditConfidential = (dealId: string, currentValue: string = "") => {
+  // Handle editing confidential info
+  const handleEditConfidential = (dealId: string, currentValue: string) => {
     setEditingConfidential(dealId);
     setTempConfidentialValue(currentValue);
   };
 
   const handleSaveConfidential = (dealId: string) => {
-    setPipelines(prev => prev.map(pipeline => {
-      if (pipeline.id === selectedPipeline) {
-        return {
-          ...pipeline,
-          columns: pipeline.columns.map(col => ({
-            ...col,
-            deals: col.deals.map(deal => 
-              deal.id === dealId ? { ...deal, confidentialInfo: tempConfidentialValue } : deal
-            )
-          }))
-        };
-      }
-      return pipeline;
-    }));
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, confidentialInfo: tempConfidentialValue };
+            }
+            return deal;
+          });
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
     setEditingConfidential(null);
     setTempConfidentialValue("");
   };
@@ -585,334 +286,278 @@ const KanbanBoard = () => {
     setTempConfidentialValue("");
   };
 
-  // Move card between pipelines
-  const handleMoveToPipeline = (dealId: string, targetPipelineId: string) => {
-    if (targetPipelineId === selectedPipeline) return;
-    
-    let dealToMove: Deal | null = null;
-    
-    // Remove deal from current pipeline
-    setPipelines(prev => prev.map(pipeline => {
-      if (pipeline.id === selectedPipeline) {
-        const updatedColumns = pipeline.columns.map(col => {
-          const dealIndex = col.deals.findIndex(d => d.id === dealId);
-          if (dealIndex !== -1) {
-            dealToMove = col.deals[dealIndex];
-            return {
-              ...col,
-              deals: col.deals.filter(d => d.id !== dealId)
-            };
+  // Handle editing stage title
+  const handleEditStage = (stageId: string, currentTitle: string) => {
+    setEditingStage(stageId);
+    setTempStageTitle(currentTitle);
+  };
+
+  const handleSaveStage = (stageId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id === stageId) {
+            return { ...stage, title: tempStageTitle };
           }
-          return col;
+          return stage;
         });
-        return { ...pipeline, columns: updatedColumns };
-      }
-      return pipeline;
-    }));
-    
-    // Add deal to target pipeline's first column
-    if (dealToMove) {
-      setPipelines(prev => prev.map(pipeline => {
-        if (pipeline.id === targetPipelineId) {
-          const updatedColumns = [...pipeline.columns];
-          if (updatedColumns.length > 0) {
-            updatedColumns[0] = {
-              ...updatedColumns[0],
-              deals: [...updatedColumns[0].deals, dealToMove!]
-            };
-          }
-          return { ...pipeline, columns: updatedColumns };
-        }
-        return pipeline;
-      }));
-    }
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+    setEditingStage(null);
+    setTempStageTitle("");
   };
 
-  const onDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId, type } = result;
+  const handleCancelStageEdit = () => {
+    setEditingStage(null);
+    setTempStageTitle("");
+  };
 
-    // Se não há destino (dropped outside), retorna
-    if (!destination) {
-      return;
-    }
+  // Handle deleting stage
+  const handleDeleteStage = (stageId: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir este stage?")) return;
 
-    // Se dropped na mesma posição, retorna
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
 
-    // Se está reordenando stages
-    if (type === "stage") {
-      if (isClientView) return; // Clientes não podem reordenar stages
-      
-      setPipelines(prev => prev.map(pipeline => {
-        if (pipeline.id === selectedPipeline) {
-          const newColumns = Array.from(pipeline.columns);
-          const [reorderedColumn] = newColumns.splice(source.index, 1);
-          newColumns.splice(destination.index, 0, reorderedColumn);
-          
-          return {
-            ...pipeline,
-            columns: newColumns
-          };
-        }
-        return pipeline;
-      }));
-      return;
-    }
+        const newStages = pipeline.stages.filter(stage => stage.id !== stageId);
 
-    // Disable card drag & drop for client view
-    if (isClientView) {
-      return;
-    }
+        return { ...pipeline, stages: newStages };
+      });
+    });
+  };
 
-    // Reordenação de cards (código existente)
-    setPipelines(prev => prev.map(pipeline => {
-      if (pipeline.id === selectedPipeline) {
-        // Encontrar as colunas de origem e destino
-        const sourceColumn = pipeline.columns.find(col => col.id === source.droppableId);
-        const destColumn = pipeline.columns.find(col => col.id === destination.droppableId);
-        
-        if (!sourceColumn || !destColumn) return pipeline;
+  // Handle adding new stage
+  const handleAddStage = () => {
+    if (!newStageTitle.trim()) return;
 
-        // Encontrar o deal sendo movido
-        const deal = sourceColumn.deals.find(d => d.id === draggableId);
-        if (!deal) return pipeline;
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
 
-        // Se movendo dentro da mesma coluna
-        if (source.droppableId === destination.droppableId) {
-          const newDeals = Array.from(sourceColumn.deals);
-          newDeals.splice(source.index, 1);
-          newDeals.splice(destination.index, 0, deal);
-
-          return {
-            ...pipeline,
-            columns: pipeline.columns.map(col =>
-              col.id === source.droppableId
-                ? { ...col, deals: newDeals }
-                : col
-            )
-          };
-        }
-
-        // Movendo entre colunas diferentes
-        const sourceDeals = Array.from(sourceColumn.deals);
-        const destDeals = Array.from(destColumn.deals);
-
-        // Remover da coluna de origem
-        sourceDeals.splice(source.index, 1);
-        
-        // Adicionar à coluna de destino
-        destDeals.splice(destination.index, 0, deal);
-
-        return {
-          ...pipeline,
-          columns: pipeline.columns.map(col => {
-            if (col.id === source.droppableId) {
-              return { ...col, deals: sourceDeals };
-            }
-            if (col.id === destination.droppableId) {
-              return { ...col, deals: destDeals };
-            }
-            return col;
-          })
+        const newStage: Stage = {
+          id: `stage-${Date.now()}`,
+          title: newStageTitle.trim(),
+          color: "bg-gray-100",
+          deals: []
         };
+
+        return { ...pipeline, stages: [...pipeline.stages, newStage] };
+      });
+    });
+
+    setNewStageTitle("");
+    setAddingStage(false);
+  };
+
+  // Handle editing card
+  const handleEditCard = (deal: Deal) => {
+    setEditingCard(deal.id);
+    setTempCardData({ ...deal });
+    setIsEditDrawerOpen(true);
+  };
+
+  // Handle saving card changes
+  const handleSaveCard = (dealId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, ...tempCardData };
+            }
+            return deal;
+          });
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingCard(null);
+    setTempCardData({});
+    setIsEditDrawerOpen(false);
+  };
+
+  // Handle cancel editing card
+  const handleCancelEditCard = () => {
+    setEditingCard(null);
+    setTempCardData({});
+    setIsEditDrawerOpen(false);
+  };
+
+  // Handle adding new card
+  const handleAddCard = (stageId: string) => {
+    const newDeal: Deal = {
+      id: `deal-${Date.now()}`,
+      title: "Novo Card",
+      client: "",
+      contact: "",
+      priority: "low",
+      stageId,
+      notes: []
+    };
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id === stageId) {
+            return { ...stage, deals: [...stage.deals, newDeal] };
+          }
+          return stage;
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+  };
+
+  // Handle moving card to another pipeline
+  const handleMoveToPipeline = (dealId: string, targetPipelineId: string) => {
+    let movedDeal: Deal | null = null;
+
+    setPipelines(prevPipelines => {
+      let updatedPipelines = prevPipelines.map(pipeline => {
+        if (pipeline.id === selectedPipeline) {
+          // Remove deal from current pipeline
+          const newStages = pipeline.stages.map(stage => {
+            const newDeals = stage.deals.filter(deal => {
+              if (deal.id === dealId) {
+                movedDeal = deal;
+                return false;
+              }
+              return true;
+            });
+            return { ...stage, deals: newDeals };
+          });
+          return { ...pipeline, stages: newStages };
+        }
+        return pipeline;
+      });
+
+      if (movedDeal) {
+        updatedPipelines = updatedPipelines.map(pipeline => {
+          if (pipeline.id === targetPipelineId) {
+            // Add deal to first stage of target pipeline
+            const newStages = pipeline.stages.map((stage, index) => {
+              if (index === 0) {
+                return { ...stage, deals: [...stage.deals, { ...movedDeal!, stageId: stage.id }] };
+              }
+              return stage;
+            });
+            return { ...pipeline, stages: newStages };
+          }
+          return pipeline;
+        });
       }
-      return pipeline;
-    }));
+
+      return updatedPipelines;
+    });
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "bg-red-100 text-red-800";
-      case "medium": return "bg-yellow-100 text-yellow-800";
-      case "low": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
+  // Handle adding note to card
+  const handleAddNote = () => {
+    if (!editingCard || !newNote.trim()) return;
+
+    const note: Note = {
+      id: `note-${Date.now()}`,
+      author: user?.name || "Unknown",
+      authorRole: user?.role === "admin" ? "admin" : "client",
+      content: newNote.trim(),
+      timestamp: new Date().toISOString(),
+      attachments: []
+    };
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === editingCard) {
+              const updatedNotes = deal.notes ? [...deal.notes, note] : [note];
+              return { ...deal, notes: updatedNotes };
+            }
+            return deal;
+          });
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setNewNote("");
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  // Handle file upload (photo or video) for notes
+  const handleFileUpload = (type: "photo" | "video") => {
+    if (!editingCard) return;
+
+    // For demo purposes, just add a dummy attachment
+    const attachment: Attachment = {
+      type,
+      name: type === "photo" ? "Foto Exemplo.jpg" : "Vídeo Exemplo.mp4",
+      url: "https://example.com/file"
+    };
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === editingCard) {
+              const lastNote = deal.notes && deal.notes.length > 0 ? deal.notes[deal.notes.length - 1] : null;
+              if (lastNote && lastNote.author === (user?.name || "Unknown") && !lastNote.attachments) {
+                // Append attachment to last note if no attachments yet
+                const updatedNote = { ...lastNote, attachments: [attachment] };
+                const updatedNotes = [...deal.notes!.slice(0, -1), updatedNote];
+                return { ...deal, notes: updatedNotes };
+              } else {
+                // Create new note with attachment
+                const newNote: Note = {
+                  id: `note-${Date.now()}`,
+                  author: user?.name || "Unknown",
+                  authorRole: user?.role === "admin" ? "admin" : "client",
+                  content: "",
+                  timestamp: new Date().toISOString(),
+                  attachments: [attachment]
+                };
+                const updatedNotes = deal.notes ? [...deal.notes, newNote] : [newNote];
+                return { ...deal, notes: updatedNotes };
+              }
+            }
+            return deal;
+          });
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
   };
-
-  const DealCard = ({ deal, index }: { deal: Deal; index: number }) => {
-    const isExpanded = expandedCards.has(deal.id);
-    
-    return (
-      <Draggable draggableId={deal.id} index={index} isDragDisabled={isClientView}>
-        {(provided, snapshot) => (
-          <Card 
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className={`mb-3 hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-200 kanban-card ${
-              snapshot.isDragging ? 'shadow-lg transform rotate-1 scale-105' : ''
-            }`}
-            style={{
-              width: 'var(--kanban-card-width, 320px)',
-              minHeight: 'var(--kanban-card-min-height, 150px)',
-              maxHeight: 'var(--kanban-card-max-height, 600px)',
-              marginBottom: 'var(--kanban-card-spacing, 12px)',
-              ...provided.draggableProps.style
-            }}
-          >
-            <Collapsible open={isExpanded} onOpenChange={() => toggleCardExpansion(deal.id)}>
-              <CardContent className="p-3">
-                {/* Header with title and expand/collapse button */}
-                <CollapsibleTrigger asChild>
-                  <div className="flex items-start justify-between gap-2 mb-2 w-full">
-                    <h3 className="font-medium text-sm leading-tight text-slate-900 flex-1 text-left">
-                      {deal.title}
-                    </h3>
-                    <div className="flex items-center gap-1">
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditCard(deal);
-                        }}
-                        className="h-5 w-5 p-0 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </CollapsibleTrigger>
-
-                {/* Always visible company and contact info */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <Building className="w-3 h-3 text-slate-400" />
-                    <span className="font-medium">{deal.companyName}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
-                      <User className="w-3 h-3 text-slate-400" />
-                      <span>{deal.contact}</span>
-                    </div>
-                    
-                    <Avatar className="w-6 h-6 border border-slate-200">
-                      {deal.avatar ? (
-                        <AvatarImage src={deal.avatar} alt={deal.companyName} />
-                      ) : null}
-                      <AvatarFallback className="text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                        {getInitials(deal.companyName)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                </div>
-
-                {/* Collapsible content */}
-                <CollapsibleContent className="space-y-3 mt-3">
-                  {/* Description */}
-                  {deal.description && (
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      {deal.description}
-                    </p>
-                  )}
-
-                  {/* Confidential section - only for admins */}
-                  {!isClientView && deal.confidentialInfo && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1">
-                          <Shield className="w-3 h-3 text-red-600" />
-                          <span className="text-xs font-medium text-red-800">Confidencial</span>
-                        </div>
-                        {editingConfidential !== deal.id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditConfidential(deal.id, deal.confidentialInfo || "");
-                            }}
-                            className="h-4 w-4 p-0 hover:bg-red-100 opacity-60 hover:opacity-100"
-                          >
-                            <Edit className="w-2.5 h-2.5" />
-                          </Button>
-                        )}
-                      </div>
-                      
-                      {editingConfidential === deal.id ? (
-                        <div className="space-y-2">
-                          <Textarea
-                            value={tempConfidentialValue}
-                            onChange={(e) => setTempConfidentialValue(e.target.value)}
-                            placeholder="Informações confidenciais..."
-                            className="text-xs min-h-[40px] resize-none border-red-200"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSaveConfidential(deal.id);
-                              }}
-                              className="h-5 px-2 text-xs"
-                            >
-                              <Check className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelConfidentialEdit();
-                              }}
-                              className="h-5 px-2 text-xs"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-red-800">{deal.confidentialInfo}</div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Notes indicator */}
-                  {deal.notes && deal.notes.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-3 h-3 text-blue-600" />
-                      <span className="text-xs text-blue-600 font-medium">{deal.notes.length} Anotações & Insights</span>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </CardContent>
-            </Collapsible>
-          </Card>
-        )}
-      </Draggable>
-    );
-  };
-
-  const filteredColumns = getFilteredColumns();
 
   return (
-    <div className="space-y-4">
-      {/* Pipeline Selector */}
-      {!isClientView && (
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            <span className="text-sm font-medium">Pipeline:</span>
-          </div>
-          <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Kanban Board</h2>
+        <div className="flex items-center space-x-2">
+          <Select
+            value={selectedPipeline}
+            onValueChange={setSelectedPipeline}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecionar pipeline" />
             </SelectTrigger>
             <SelectContent>
               {pipelines.map((pipeline) => (
@@ -923,394 +568,489 @@ const KanbanBoard = () => {
             </SelectContent>
           </Select>
         </div>
-      )}
+      </div>
 
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="stages" direction="horizontal" type="stage">
-          {(provided) => (
-            <div 
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className="flex gap-6 overflow-x-auto pb-6 min-h-[700px]"
-            >
-              {filteredColumns.map((column, index) => (
-                <Draggable 
-                  key={column.id} 
-                  draggableId={column.id} 
-                  index={index}
-                  isDragDisabled={isClientView}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {getFilteredColumns().map((column) => (
+            <Droppable key={column.id} droppableId={column.id}>
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={`min-w-[280px] ${column.color} rounded-lg p-3 ${
+                    snapshot.isDraggingOver ? 'ring-2 ring-blue-500' : ''
+                  }`}
                 >
-                  {(provided, snapshot) => (
-                    <div 
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className={`flex-shrink-0 kanban-column ${snapshot.isDragging ? 'transform rotate-1' : ''}`}
-                      style={{
-                        width: 'var(--kanban-column-width, 320px)'
-                      }}
-                    >
-                      <div className={`${column.color} rounded-xl p-4 min-h-full shadow-sm border border-slate-200`}>
-                        <div className="flex justify-between items-center mb-4">
-                          <div className="flex items-center gap-2 flex-1">
-                            {!isClientView && (
-                              <div {...provided.dragHandleProps} className="cursor-grab hover:cursor-grabbing">
-                                <GripVertical className="w-4 h-4 text-slate-400" />
-                              </div>
-                            )}
-                            
-                            {editingStage === column.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={tempStageTitle}
-                                  onChange={(e) => setTempStageTitle(e.target.value)}
-                                  className="text-sm h-8"
-                                  autoFocus
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleSaveStage(column.id)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={handleCancelStageEdit}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-slate-900 text-sm flex-1">
-                                  {column.title}
-                                </h3>
-                              </>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs font-medium">
-                              {column.deals.length}
-                            </Badge>
-                            {!isClientView && (
-                              <>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                      <MoreHorizontal className="w-3 h-3" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem 
-                                      onClick={() => handleEditStage(column.id, column.title)}
-                                    >
-                                      <Edit className="w-3 h-3 mr-2" />
-                                      Editar
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      onClick={() => handleDeleteStage(column.id)}
-                                      className="text-red-600"
-                                    >
-                                      <Trash2 className="w-3 h-3 mr-2" />
-                                      Excluir
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <Droppable droppableId={column.id}>
+                  <div className="flex items-center justify-between mb-3">
+                    {editingStage === column.id ? (
+                      <div className="flex items-center space-x-2 flex-1">
+                        <Input
+                          value={tempStageTitle}
+                          onChange={(e) => setTempStageTitle(e.target.value)}
+                          className="text-sm font-semibold h-8"
+                          onKeyPress={(e) => e.key === 'Enter' && handleSaveStage(column.id)}
+                        />
+                        <Button size="sm" onClick={() => handleSaveStage(column.id)}>
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelStageEdit}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                        {column.title}
+                        <Badge variant="secondary" className="text-xs">
+                          {column.deals.length}
+                        </Badge>
+                      </h3>
+                    )}
+
+                    {!isClientView && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-white border shadow-lg">
+                          <DropdownMenuItem onClick={() => handleEditStage(column.id, column.title)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar Stage
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteStage(column.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Excluir Stage
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    {column.deals.map((deal, index) => {
+                      const isExpanded = expandedCards.has(deal.id);
+                      
+                      return (
+                        <Draggable key={deal.id} draggableId={deal.id} index={index}>
                           {(provided, snapshot) => (
-                            <div
+                            <Card
                               ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`space-y-3 min-h-[400px] ${
-                                snapshot.isDraggingOver ? 'bg-blue-50 bg-opacity-50 rounded-lg p-2' : ''
+                              {...provided.draggableProps}
+                              className={`cursor-pointer transition-all duration-200 ${
+                                snapshot.isDragging ? 'rotate-2 shadow-lg' : 'hover:shadow-md'
                               }`}
                             >
-                              {column.deals.map((deal, index) => (
-                                <div key={deal.id} className="group">
-                                  <DealCard deal={deal} index={index} />
+                              <CardHeader 
+                                className="pb-2" 
+                                {...provided.dragHandleProps}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center space-x-2 flex-1">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarImage src={deal.avatar} />
+                                      <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
+                                        {deal.client.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      <CardTitle className="text-sm font-medium text-slate-800">
+                                        {deal.title}
+                                      </CardTitle>
+                                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                                        <Building className="w-3 h-3" />
+                                        {deal.client}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-1">
+                                    <Badge 
+                                      variant={
+                                        deal.priority === 'high' ? 'destructive' : 
+                                        deal.priority === 'medium' ? 'default' : 'secondary'
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {deal.priority === 'high' ? 'Alta' : 
+                                       deal.priority === 'medium' ? 'Média' : 'Baixa'}
+                                    </Badge>
+                                    
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleCardExpansion(deal.id);
+                                      }}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronDown className="w-3 h-3" />
+                                      ) : (
+                                        <ChevronRight className="w-3 h-3" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 </div>
-                              ))}
-                              {provided.placeholder}
-                            </div>
+                              </CardHeader>
+
+                              <Collapsible open={isExpanded}>
+                                <CollapsibleContent>
+                                  <CardContent className="pt-0 space-y-3">
+                                    <div className="text-xs text-slate-600">
+                                      <p><span className="font-medium">Contato:</span> {deal.contact}</p>
+                                      {deal.description && (
+                                        <p className="mt-1"><span className="font-medium">Descrição:</span> {deal.description}</p>
+                                      )}
+                                    </div>
+
+                                    {!isClientView && deal.confidentialInfo && (
+                                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                                        <div className="flex items-center justify-between">
+                                          <p className="flex items-center gap-1 text-yellow-800">
+                                            <Shield className="w-3 h-3" />
+                                            <span className="font-medium">Confidencial:</span>
+                                          </p>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleEditConfidential(deal.id, deal.confidentialInfo)}
+                                            className="h-5 w-5 p-0"
+                                          >
+                                            <Edit className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                        {editingConfidential === deal.id ? (
+                                          <div className="mt-2 space-y-2">
+                                            <Textarea
+                                              value={tempConfidentialValue}
+                                              onChange={(e) => setTempConfidentialValue(e.target.value)}
+                                              className="text-xs min-h-[60px]"
+                                            />
+                                            <div className="flex gap-1">
+                                              <Button size="sm" onClick={() => handleSaveConfidential(deal.id)}>
+                                                <Check className="w-3 h-3" />
+                                              </Button>
+                                              <Button size="sm" variant="outline" onClick={handleCancelConfidentialEdit}>
+                                                <X className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p className="text-yellow-700 mt-1">{deal.confidentialInfo}</p>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEditCard(deal)}
+                                        className="flex-1 h-7 text-xs"
+                                      >
+                                        <Edit className="w-3 h-3 mr-1" />
+                                        Editar
+                                      </Button>
+                                      
+                                      {!isClientView && (
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="sm" className="h-7 px-2">
+                                              <ArrowRight className="w-3 h-3" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="bg-white border shadow-lg">
+                                            {pipelines
+                                              .filter(p => p.id !== selectedPipeline)
+                                              .map(pipeline => (
+                                                <DropdownMenuItem 
+                                                  key={pipeline.id}
+                                                  onClick={() => handleMoveToPipeline(deal.id, pipeline.id)}
+                                                >
+                                                  Mover para {pipeline.name}
+                                                </DropdownMenuItem>
+                                              ))
+                                            }
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            </Card>
                           )}
-                        </Droppable>
-                      </div>
-                    </div>
+                        </Draggable>
+                      );
+                    })}
+                  </div>
+                  
+                  {!isClientView && (
+                    <Button
+                      variant="ghost"
+                      className="w-full mt-3 border-2 border-dashed border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-600"
+                      onClick={() => handleAddCard(column.id)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Card
+                    </Button>
                   )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-              
-              {/* Add Stage Button */}
-              {!isClientView && (
-                <div className="flex-shrink-0" style={{ width: 'var(--kanban-column-width, 320px)' }}>
-                  {addingStage ? (
-                    <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px]">
-                      <Input
-                        value={newStageTitle}
-                        onChange={(e) => setNewStageTitle(e.target.value)}
-                        placeholder="Nome do novo stage..."
-                        className="text-sm mb-3"
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleAddStage}>
-                          <Check className="w-4 h-4 mr-1" />
-                          Adicionar
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          setAddingStage(false);
-                          setNewStageTitle("");
-                        }}>
-                          <X className="w-4 h-4 mr-1" />
-                          Cancelar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50 rounded-xl p-4 border-2 border-dashed border-slate-300 min-h-[200px] flex items-center justify-center">
-                      <Button
-                        variant="ghost"
-                        onClick={() => setAddingStage(true)}
-                        className="text-slate-600 hover:text-slate-900"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Adicionar Stage
+                  
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          ))}
+          
+          {!isClientView && (
+            <div className="min-w-[280px]">
+              {addingStage ? (
+                <div className="bg-slate-100 rounded-lg p-3">
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Nome do novo stage..."
+                      value={newStageTitle}
+                      onChange={(e) => setNewStageTitle(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddStage()}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleAddStage}>
+                        <Check className="w-4 h-4 mr-1" />
+                        Criar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setAddingStage(false)}>
+                        <X className="w-4 h-4 mr-1" />
+                        Cancelar
                       </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full h-20 border-2 border-dashed border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-600"
+                  onClick={() => setAddingStage(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Stage
+                </Button>
               )}
             </div>
           )}
-        </Droppable>
+        </div>
       </DragDropContext>
 
       {/* Edit Card Drawer */}
       <Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
-        <DrawerContent className="max-h-[85vh]">
+        <DrawerContent className="bg-white">
           <DrawerHeader>
             <DrawerTitle>Editar Card</DrawerTitle>
             <DrawerDescription>
-              Edite as informações do card abaixo
+              Faça as alterações necessárias no card
             </DrawerDescription>
           </DrawerHeader>
           
-          <div className="px-6 pb-6 space-y-6 max-h-[calc(85vh-120px)] overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+          <div className="px-4 pb-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Título</label>
+                <Input
+                  value={tempCardData.title || ""}
+                  onChange={(e) => setTempCardData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Título do card"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Descrição</label>
+                <Textarea
+                  value={tempCardData.description || ""}
+                  onChange={(e) => setTempCardData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Descrição do projeto..."
+                  className="min-h-[80px]"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Título</label>
-                  <Input
-                    value={tempCardData.title || ""}
-                    onChange={(e) => setTempCardData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Título do projeto"
-                    className="w-full"
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Cliente</label>
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-500">
-                      Debug: {clients.length} clientes encontrados
-                    </div>
-                    <Select
-                      value={tempCardData.clientId || ""}
-                      onValueChange={(value) => {
-                        console.log('Selected client ID:', value);
-                        const selectedClient = clients.find((c: any) => c.id === value);
-                        console.log('Selected client object:', selectedClient);
+                  <label className="text-sm font-medium">Cliente/Empresa</label>
+                  <Select
+                    value={tempCardData.clientId || ""}
+                    onValueChange={(value) => {
+                      const selectedClient = clients.find(c => c.id === value);
+                      if (selectedClient) {
                         setTempCardData(prev => ({ 
                           ...prev, 
                           clientId: value,
-                          companyName: selectedClient?.companyName || "",
-                          client: selectedClient?.companyName || ""
+                          companyName: selectedClient.company,
+                          contact: selectedClient.contact
                         }));
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecionar cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.length > 0 ? (
-                          clients.map((client: any) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              <div className="flex items-center gap-2">
-                                <Building className="w-4 h-4" />
-                                {client.companyName || client.name || client.company || 'Cliente sem nome'}
-                              </div>
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-clients" disabled>
-                            Nenhum cliente cadastrado - Verifique a aba Clientes
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={clients.length > 0 ? "Selecionar cliente" : `Debug: ${clients.length} clientes encontrados`} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border shadow-lg">
+                      {clients.length > 0 ? (
+                        clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.company} - {client.contact}
                           </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        ))
+                      ) : (
+                        <SelectItem value="no-clients" disabled>
+                          Nenhum cliente encontrado - Verifique a aba Clientes
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Contato</label>
+                  <label className="text-sm font-medium">Contato</label>
                   <Input
                     value={tempCardData.contact || ""}
                     onChange={(e) => setTempCardData(prev => ({ ...prev, contact: e.target.value }))}
                     placeholder="Nome do contato"
-                    className="w-full"
                   />
                 </div>
-
-                {/* Move to Pipeline Dropdown */}
-                {!isClientView && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Mover para pipeline:</label>
-                    <Select
-                      onValueChange={(value) => editingCard && handleMoveToPipeline(editingCard, value)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecionar pipeline" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pipelines.filter(p => p.id !== selectedPipeline).map(pipeline => (
-                          <SelectItem key={pipeline.id} value={pipeline.id}>
-                            <div className="flex items-center gap-2">
-                              <ArrowRight className="w-4 h-4" />
-                              {pipeline.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </div>
-              
-              <div className="space-y-4">
+
+              {!isClientView && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Descrição</label>
+                  <label className="text-sm font-medium">Informações Confidenciais</label>
                   <Textarea
-                    value={tempCardData.description || ""}
-                    onChange={(e) => setTempCardData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descrição detalhada do projeto"
-                    className="w-full min-h-[100px]"
+                    value={tempCardData.confidentialInfo || ""}
+                    onChange={(e) => setTempCardData(prev => ({ ...prev, confidentialInfo: e.target.value }))}
+                    placeholder="Informações internas, margens, estratégias..."
+                    className="min-h-[60px]"
                   />
                 </div>
-                
-                {!isClientView && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block text-red-600 flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Informações Confidenciais
-                    </label>
-                    <Textarea
-                      value={tempCardData.confidentialInfo || ""}
-                      onChange={(e) => setTempCardData(prev => ({ ...prev, confidentialInfo: e.target.value }))}
-                      placeholder="Informações internas e confidenciais (visível apenas para administradores)"
-                      className="w-full min-h-[100px] border-red-200 focus:border-red-300"
-                    />
-                  </div>
+              )}
+            </div>
+
+            {/* Notes Section */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Anotações e Anexos
+              </h4>
+              
+              <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                {tempCardData.notes && tempCardData.notes.length > 0 ? (
+                  tempCardData.notes.map((note) => (
+                    <div key={note.id} className="p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
+                              {note.author.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{note.author}</p>
+                            <p className="text-xs text-slate-500">
+                              {new Date(note.timestamp).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant={note.authorRole === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                          {note.authorRole === 'admin' ? 'Admin' : 'Cliente'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-700 mb-2">{note.content}</p>
+                      {note.attachments && note.attachments.length > 0 && (
+                        <div className="space-y-2">
+                          {note.attachments.map((attachment, index) => (
+                            <div key={index} className="flex items-center gap-2 p-2 bg-white rounded border">
+                              {attachment.type === 'photo' ? (
+                                <Camera className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <Video className="w-4 h-4 text-red-600" />
+                              )}
+                              <span className="text-sm">{attachment.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(attachment.url, '_blank')}
+                                className="ml-auto h-6 text-xs"
+                              >
+                                Ver
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500 text-center py-4">Nenhuma anotação ainda</p>
                 )}
               </div>
-            </div>
-            
-            {/* Notes Section */}
-            <div className="space-y-4 border-t pt-6">
-              <div>
-                <label className="text-sm font-medium mb-2 block flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Anotações & Insights
-                </label>
-                
-                {/* Existing Notes */}
-                {tempCardData.notes && tempCardData.notes.length > 0 && (
-                  <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
-                    {tempCardData.notes.map((note) => (
-                      <div key={note.id} className="p-4 bg-slate-50 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-sm font-medium ${note.authorRole === 'admin' ? 'text-purple-600' : 'text-green-600'}`}>
-                            {note.author} ({note.authorRole === 'admin' ? 'Admin' : 'Cliente'})
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {new Date(note.timestamp).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <div className="text-sm text-slate-700 whitespace-pre-wrap mb-2">{note.content}</div>
-                        {note.attachments && note.attachments.length > 0 && (
-                          <div className="space-y-2">
-                            {note.attachments.map((attachment, idx) => (
-                              <div key={idx}>
-                                {attachment.type === 'photo' ? (
-                                  <img 
-                                    src={attachment.url} 
-                                    alt={attachment.name}
-                                    className="max-w-full max-h-40 object-cover rounded border"
-                                  />
-                                ) : (
-                                  <video 
-                                    src={attachment.url} 
-                                    controls
-                                    className="max-w-full max-h-40 rounded border"
-                                  />
-                                )}
-                                <p className="text-xs text-slate-500 mt-1">{attachment.name}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
 
-                {/* Add New Note */}
-                <div className="space-y-3">
+              <div className="mt-4 space-y-3">
+                <div className="flex gap-2">
                   <Textarea
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     placeholder="Adicionar nova anotação..."
-                    className="w-full min-h-[100px]"
+                    className="flex-1 min-h-[60px]"
                   />
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddNote} size="sm" disabled={!newNote.trim()}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Anotação
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleFileUpload('photo')}>
-                      <Camera className="w-4 h-4 mr-2" />
-                      Foto
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleFileUpload('video')}>
-                      <Video className="w-4 h-4 mr-2" />
-                      Vídeo
-                    </Button>
-                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleAddNote}
+                    disabled={!newNote.trim()}
+                    className="flex-1"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Adicionar Nota
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleFileUpload('photo')}
+                    className="px-3"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleFileUpload('video')}
+                    className="px-3"
+                  >
+                    <Video className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
-            
-            <div className="flex gap-3 pt-4 border-t">
-              <Button onClick={() => editingCard && handleSaveCard(editingCard)} className="flex-1">
+
+            <div className="flex gap-3 pt-4">
+              <Button 
+                onClick={() => editingCard && handleSaveCard(editingCard)} 
+                className="flex-1"
+              >
                 <Check className="w-4 h-4 mr-2" />
                 Salvar Alterações
               </Button>
-              <Button variant="outline" onClick={() => {
-                setEditingCard(null);
-                setTempCardData({});
-                setIsEditDrawerOpen(false);
-              }} className="flex-1">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditDrawerOpen(false)}
+                className="flex-1"
+              >
                 <X className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
