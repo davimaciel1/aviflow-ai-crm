@@ -35,10 +35,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event, session?.user?.id);
+        
+        if (!mounted) return;
+        
         setSession(session);
         
         if (session?.user) {
@@ -50,10 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('id', session.user.id)
               .single();
 
+            if (!mounted) return;
+
             if (error) {
               console.error('Error fetching profile:', error);
               setUser(null);
-            } else {
+            } else if (profile) {
               setUser({
                 id: profile.id,
                 name: profile.name,
@@ -64,39 +71,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (error) {
             console.error('Error in auth state change:', error);
-            setUser(null);
+            if (mounted) {
+              setUser(null);
+            }
           }
         } else {
-          setUser(null);
+          if (mounted) {
+            setUser(null);
+          }
         }
         
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session?.user?.id);
-      // The onAuthStateChange will handle setting the user
-    });
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        console.log('Initial session:', session?.user?.id);
+        // The onAuthStateChange will handle setting the user
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    getInitialSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    
     try {
       // Input validation
       if (!email || !password) {
-        setIsLoading(false);
         return false;
       }
 
       // Email format validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
-        setIsLoading(false);
         return false;
       }
       
@@ -107,7 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Login error:', error);
-        setIsLoading(false);
         return false;
       }
 
@@ -116,11 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
       
-      setIsLoading(false);
       return false;
     } catch (error) {
       console.error('Login error:', error);
-      setIsLoading(false);
       return false;
     }
   };
