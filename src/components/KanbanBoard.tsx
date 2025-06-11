@@ -532,7 +532,6 @@ const KanbanBoard = () => {
         
         const mockUrl = URL.createObjectURL(file);
         
-        // Create a new note with the attachment
         if (!user) return;
         
         const noteWithAttachment: Note = {
