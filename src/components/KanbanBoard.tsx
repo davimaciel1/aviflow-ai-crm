@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { 
   User,
   Plus,
@@ -89,6 +90,15 @@ const KanbanBoard = () => {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState<boolean>(false);
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  
+  // Novos estados para adicionar cliente
+  const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState<boolean>(false);
+  const [newClientData, setNewClientData] = useState({
+    name: "",
+    company: "",
+    email: "",
+    phone: ""
+  });
 
   // Get clients from localStorage - buscar na chave correta
   const getClientsFromStorage = () => {
@@ -104,9 +114,9 @@ const KanbanBoard = () => {
           if (Array.isArray(parsedClients) && parsedClients.length > 0) {
             return parsedClients.map(client => ({
               id: client.id,
-              name: client.company || client.name, // usar company como nome principal
+              name: client.company || client.name,
               company: client.company,
-              contact: client.name, // nome da pessoa de contato
+              contact: client.name,
               email: client.email
             }));
           }
@@ -143,9 +153,47 @@ const KanbanBoard = () => {
     }
   };
 
-  const clients = getClientsFromStorage();
-  console.log('Array final de clientes para dropdown:', clients);
-  console.log('Quantidade de clientes:', clients.length);
+  const [clients, setClients] = useState(() => getClientsFromStorage());
+
+  // Função para adicionar novo cliente
+  const handleAddNewClient = () => {
+    if (!newClientData.name.trim() || !newClientData.company.trim()) {
+      return;
+    }
+
+    const newClient = {
+      id: `client-${Date.now()}`,
+      name: newClientData.name,
+      company: newClientData.company,
+      email: newClientData.email,
+      phone: newClientData.phone
+    };
+
+    // Adicionar ao estado local
+    setClients(prev => [...prev, newClient]);
+
+    // Salvar no localStorage (daviflow_clients)
+    try {
+      const existingClients = JSON.parse(localStorage.getItem('daviflow_clients') || '[]');
+      const updatedClients = [...existingClients, newClient];
+      localStorage.setItem('daviflow_clients', JSON.stringify(updatedClients));
+      console.log('Cliente adicionado ao localStorage:', newClient);
+    } catch (error) {
+      console.error('Erro ao salvar cliente no localStorage:', error);
+    }
+
+    // Selecionar o novo cliente automaticamente
+    setTempCardData(prev => ({
+      ...prev,
+      clientId: newClient.id,
+      companyName: newClient.company,
+      contact: newClient.name
+    }));
+
+    // Limpar formulário e fechar modal
+    setNewClientData({ name: "", company: "", email: "", phone: "" });
+    setIsAddClientDialogOpen(false);
+  };
 
   // Example pipelines and stages data
   const [pipelines, setPipelines] = useState<Pipeline[]>([
@@ -879,7 +927,70 @@ const KanbanBoard = () => {
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium">Cliente/Empresa</label>
+                  <label className="text-sm font-medium flex items-center justify-between">
+                    Cliente/Empresa
+                    <Dialog open={isAddClientDialogOpen} onOpenChange={setIsAddClientDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-6 px-2">
+                          <Plus className="w-3 h-3 mr-1" />
+                          Novo
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white">
+                        <DialogHeader>
+                          <DialogTitle>Adicionar Novo Cliente</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium">Nome do Contato</label>
+                            <Input
+                              value={newClientData.name}
+                              onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="Nome da pessoa de contato"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Nome da Empresa</label>
+                            <Input
+                              value={newClientData.company}
+                              onChange={(e) => setNewClientData(prev => ({ ...prev, company: e.target.value }))}
+                              placeholder="Nome da empresa"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Email</label>
+                            <Input
+                              type="email"
+                              value={newClientData.email}
+                              onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
+                              placeholder="email@empresa.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Telefone</label>
+                            <Input
+                              value={newClientData.phone}
+                              onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
+                              placeholder="(11) 99999-9999"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button onClick={handleAddNewClient} className="flex-1">
+                              <Check className="w-4 h-4 mr-2" />
+                              Adicionar Cliente
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setIsAddClientDialogOpen(false)}
+                              className="flex-1"
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </label>
                   <Select
                     value={tempCardData.clientId || ""}
                     onValueChange={(value) => {
@@ -895,7 +1006,7 @@ const KanbanBoard = () => {
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={clients.length > 0 ? "Selecionar cliente" : `Debug: ${clients.length} clientes encontrados`} />
+                      <SelectValue placeholder={clients.length > 0 ? "Selecionar cliente" : "Nenhum cliente encontrado"} />
                     </SelectTrigger>
                     <SelectContent className="bg-white border shadow-lg">
                       {clients.length > 0 ? (
@@ -906,7 +1017,7 @@ const KanbanBoard = () => {
                         ))
                       ) : (
                         <SelectItem value="no-clients" disabled>
-                          Nenhum cliente encontrado - Verifique a aba Clientes
+                          Nenhum cliente encontrado - Use o botão "Novo" para adicionar
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -1063,3 +1174,5 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
+
+}
