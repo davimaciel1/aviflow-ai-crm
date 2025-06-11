@@ -169,6 +169,7 @@ const ClientsList = () => {
   };
 
   const handleViewDetails = (client: Client) => {
+    console.log('Opening edit dialog for client:', client.name);
     setSelectedClient(client);
     setEditFormData({
       name: client.name,
@@ -184,13 +185,26 @@ const ClientsList = () => {
   };
 
   const handleSaveClient = () => {
-    if (!selectedClient) return;
+    if (!selectedClient) {
+      console.log('No selected client to save');
+      return;
+    }
     
-    setClients(prev => prev.map(client => 
-      client.id === selectedClient.id 
-        ? { ...client, ...editFormData }
-        : client
-    ));
+    console.log('Saving client changes:', editFormData);
+    console.log('Selected client ID:', selectedClient.id);
+    
+    setClients(prev => {
+      const updatedClients = prev.map(client => {
+        if (client.id === selectedClient.id) {
+          const updatedClient = { ...client, ...editFormData };
+          console.log('Updated client:', updatedClient);
+          return updatedClient;
+        }
+        return client;
+      });
+      console.log('All clients after update:', updatedClients);
+      return updatedClients;
+    });
     
     setIsEditDialogOpen(false);
     setSelectedClient(null);
@@ -517,7 +531,10 @@ const ClientsList = () => {
                 <label className="text-sm font-medium">Nome</label>
                 <Input
                   value={editFormData.name || ""}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => {
+                    console.log('Changing name to:', e.target.value);
+                    setEditFormData(prev => ({ ...prev, name: e.target.value }));
+                  }}
                 />
               </div>
               
@@ -581,7 +598,11 @@ const ClientsList = () => {
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => setIsEditDialogOpen(false)}
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setSelectedClient(null);
+                  setEditFormData({});
+                }}
                 className="flex-1"
               >
                 Cancelar
