@@ -1,291 +1,1650 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  DragDropContext, 
-  Droppable, 
-  Draggable,
-  DropResult 
-} from "@hello-pangea/dnd";
-import { 
-  Plus, 
-  MoreHorizontal, 
-  Calendar, 
-  DollarSign,
-  Building2,
-  Briefcase,
-  Factory,
-  ShoppingCart,
-  Smartphone,
-  Car,
-  Heart,
-  GraduationCap,
-  Home,
-  Plane
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { 
+  MoreHorizontal, 
+  Plus, 
+  Trash2, 
+  Edit, 
+  Check, 
+  X, 
+  ChevronDown, 
+  ChevronRight,
+  Clock,
+  Calendar,
+  User,
+  Building2,
+  Mail,
+  Phone,
+  AlertTriangle,
+  Flag,
+  MessageSquare,
+  Lock,
+  Unlock,
+  PenSquare,
+  Factory,
+  Store,
+  Briefcase,
+  Laptop,
+  Smartphone,
+  Globe,
+  Zap,
+  Heart,
+  Shield,
+  Truck
+} from "lucide-react";
+
+interface Client {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  status: "active" | "inactive" | "prospect";
+}
+
+interface Note {
+  id: string;
+  text: string;
+  date: string;
+  author: string;
+}
 
 interface Deal {
   id: string;
   title: string;
-  company: string;
-  clientName: string;
-  clientAvatar: string;
-  value: number;
-  stage: "prospecting" | "qualification" | "proposal" | "closing";
-  priority: "low" | "medium" | "high";
-  dueDate: string;
   description?: string;
+  client?: string;
+  clientId?: string;
+  companyName?: string;
+  contact?: string;
+  value?: number;
+  priority: "low" | "medium" | "high";
+  stageId: string;
+  confidential?: string;
+  notes?: Note[];
 }
 
-interface Column {
-  id: Deal['stage'];
+interface Stage {
+  id: string;
   title: string;
-  icon: React.ReactNode;
+  deals: Deal[];
 }
 
-const getCompanyIcon = (company: string) => {
-  switch (company) {
-    case "Queiroz Industrial":
-      return <Factory className="w-4 h-4 text-blue-600" />;
-    case "TechFlow Solutions":
-      return <Smartphone className="w-4 h-4 text-blue-600" />;
-    case "Digital Boost":
-      return <TrendingUp className="w-4 h-4 text-blue-600" />;
-    case "RetailMax":
-      return <ShoppingCart className="w-4 h-4 text-blue-600" />;
-    default:
-      return <Building2 className="w-4 h-4 text-blue-600" />;
-  }
-};
+interface Pipeline {
+  id: string;
+  name: string;
+  stages: Stage[];
+}
 
 const KanbanBoard = () => {
   const { user } = useAuth();
   const isClientView = user?.role === 'client';
-  const { toast } = useToast();
+  const [editingConfidential, setEditingConfidential] = useState<string | null>(null);
+  const [tempConfidentialValue, setTempConfidentialValue] = useState<string>("");
+  const [editingStage, setEditingStage] = useState<string | null>(null);
+  const [tempStageTitle, setTempStageTitle] = useState<string>("");
+  const [editingCard, setEditingCard] = useState<string | null>(null);
+  const [tempCardData, setTempCardData] = useState<Partial<Deal>>({});
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("sales");
+  const [addingStage, setAddingStage] = useState<boolean>(false);
+  const [newStageTitle, setNewStageTitle] = useState<string>("");
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState<boolean>(false);
+  const [newNote, setNewNote] = useState<string>("");
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [columns, setColumns] = useState<Column[]>([
-    {
-      id: "prospecting",
-      title: "Prospecção",
-      icon: <Briefcase className="w-4 h-4" />,
-    },
-    {
-      id: "qualification",
-      title: "Qualificação",
-      icon: <Search className="w-4 h-4" />,
-    },
-    {
-      id: "proposal",
-      title: "Proposta",
-      icon: <FileText className="w-4 h-4" />,
-    },
-    {
-      id: "closing",
-      title: "Fechamento",
-      icon: <CheckCircle className="w-4 h-4" />,
-    },
-  ]);
-  const [newDeal, setNewDeal] = useState<Omit<Deal, 'id'>>({
-    title: "",
+  // Estados para edição inline
+  const [editingTitle, setEditingTitle] = useState<string | null>(null);
+  const [editingDescription, setEditingDescription] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | null>(null);
+  const [tempTitle, setTempTitle] = useState<string>("");
+  const [tempDescription, setTempDescription] = useState<string>("");
+  const [tempValue, setTempValue] = useState<string>("");
+  
+  // Novos estados para adicionar cliente
+  const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState<boolean>(false);
+  const [newClientData, setNewClientData] = useState({
+    name: "",
     company: "",
-    clientName: "",
-    clientAvatar: "",
-    value: 0,
-    stage: "prospecting",
-    priority: "medium",
-    dueDate: new Date().toISOString().split('T')[0],
-    description: ""
+    email: "",
+    phone: ""
   });
 
+  // Estados para gerenciar pipelines
+  const [isAddPipelineDialogOpen, setIsAddPipelineDialogOpen] = useState<boolean>(false);
+  const [newPipelineData, setNewPipelineData] = useState({
+    name: ""
+  });
+  const [editingPipeline, setEditingPipeline] = useState<string | null>(null);
+  const [tempPipelineName, setTempPipelineName] = useState<string>("");
+
+  // Estados para novo deal
+  const [isAddDealDialogOpen, setIsAddDealDialogOpen] = useState<boolean>(false);
+  const [newDealData, setNewDealData] = useState<{
+    title: string;
+    description: string;
+    clientId: string;
+    contact: string;
+    priority: "low" | "medium" | "high";
+    stageId: string;
+  }>({
+    title: "",
+    description: "",
+    clientId: "",
+    contact: "",
+    priority: "low",
+    stageId: ""
+  });
+
+  // Carregar clientes do localStorage
+  const [clients, setClients] = useState<Client[]>([]);
+
+  const getClientsFromStorage = () => {
+    const savedClients = localStorage.getItem('daviflow_clients');
+    if (savedClients) {
+      try {
+        return JSON.parse(savedClients);
+      } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+        return [];
+      }
+    }
+    return [];
+  };
+
   useEffect(() => {
-    // Simulate fetching deals from an API
-    setTimeout(() => {
-      setDeals(mockDeals);
-    }, 500);
+    setClients(getClientsFromStorage());
   }, []);
 
-  const mockDeals: Deal[] = [
-    {
-      id: "1",
-      title: "LUVA MULTIUSO",
-      company: "Queiroz Industrial",
-      clientName: "Anderson",
-      clientAvatar: `https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=150&h=150&fit=crop&crop=face`,
-      value: 45000,
-      stage: "prospecting",
-      priority: "high",
-      dueDate: "2024-01-15",
-      description: "Fornecimento de luvas multiuso para indústria"
-    },
-    {
-      id: "2", 
-      title: "Sistema CRM Personalizado",
-      company: "TechFlow Solutions",
-      clientName: "Maria Silva",
-      clientAvatar: `https://images.unsplash.com/photo-1493962853295-0fd70327578a?w=150&h=150&fit=crop&crop=face`,
-      value: 85000,
-      stage: "qualification", 
-      priority: "medium",
-      dueDate: "2024-01-20",
-      description: "Desenvolvimento de sistema CRM sob medida"
-    },
-    {
-      id: "3",
-      title: "Consultoria em Marketing Digital", 
-      company: "Digital Boost",
-      clientName: "Carlos Santos",
-      clientAvatar: `https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=150&h=150&fit=crop&crop=face`,
-      value: 32000,
-      stage: "proposal",
-      priority: "low", 
-      dueDate: "2024-01-25",
-      description: "Estratégia completa de marketing digital"
-    },
-    {
-      id: "4",
-      title: "Plataforma E-commerce",
-      company: "RetailMax",
-      clientName: "Ana Costa",
-      clientAvatar: `https://images.unsplash.com/photo-1501286353178-1ec881214838?w=150&h=150&fit=crop&crop=face`,
-      value: 120000,
-      stage: "closing",
-      priority: "high",
-      dueDate: "2024-01-30", 
-      description: "Desenvolvimento completo de e-commerce"
+  const handleAddNewClient = () => {
+    if (!newClientData.name || !newClientData.company || !newClientData.email) {
+      return;
     }
-  ];
 
-  const handleDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+    const newClient = {
+      id: `client-${Date.now()}`,
+      name: newClientData.name,
+      company: newClientData.company,
+      email: newClientData.email,
+      phone: newClientData.phone,
+      status: "prospect" as const
+    };
 
+    const updatedClients = [...clients, newClient];
+    setClients(updatedClients);
+    localStorage.setItem('daviflow_clients', JSON.stringify(updatedClients));
+
+    setNewClientData({
+      name: "",
+      company: "",
+      email: "",
+      phone: ""
+    });
+    setIsAddClientDialogOpen(false);
+  };
+
+  // Carregar pipelines do localStorage ou usar padrão
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+
+  useEffect(() => {
+    const savedPipelines = localStorage.getItem('daviflow_pipelines');
+    if (savedPipelines) {
+      try {
+        setPipelines(JSON.parse(savedPipelines));
+      } catch (error) {
+        console.error('Erro ao carregar pipelines:', error);
+        loadDefaultPipelines();
+      }
+    } else {
+      loadDefaultPipelines();
+    }
+  }, []);
+
+  // Salvar no localStorage sempre que pipelines mudar
+  useEffect(() => {
+    if (pipelines.length > 0) {
+      localStorage.setItem('daviflow_pipelines', JSON.stringify(pipelines));
+    }
+  }, [pipelines]);
+
+  const loadDefaultPipelines = () => {
+    const defaultPipelines: Pipeline[] = [
+      {
+        id: "sales",
+        name: "Pipeline de Vendas",
+        stages: [
+          {
+            id: "prospecting",
+            title: "Prospecção",
+            deals: [
+              {
+                id: "deal1",
+                title: "Website para TechCorp",
+                description: "Desenvolvimento de website corporativo com CMS",
+                client: "TechCorp Ltd",
+                clientId: "1",
+                companyName: "TechCorp Ltd",
+                contact: "João Silva",
+                value: 45000,
+                priority: "high",
+                stageId: "prospecting",
+                notes: [
+                  {
+                    id: "note1",
+                    text: "Cliente interessado em iniciar em agosto",
+                    date: "2024-06-08",
+                    author: "Ana Souza"
+                  }
+                ]
+              },
+              {
+                id: "deal2",
+                title: "Consultoria SEO",
+                description: "Otimização de mecanismos de busca",
+                client: "StartupXYZ",
+                clientId: "2",
+                companyName: "StartupXYZ",
+                contact: "Maria Santos",
+                value: 12000,
+                priority: "medium",
+                stageId: "prospecting",
+                notes: []
+              }
+            ]
+          },
+          {
+            id: "qualification",
+            title: "Qualificação",
+            deals: [
+              {
+                id: "deal3",
+                title: "App Mobile",
+                description: "Aplicativo iOS e Android para delivery",
+                client: "ABC Corporation",
+                clientId: "3",
+                companyName: "ABC Corporation",
+                contact: "Pedro Oliveira",
+                value: 85000,
+                priority: "high",
+                stageId: "qualification",
+                confidential: "Orçamento máximo de R$ 100.000",
+                notes: []
+              }
+            ]
+          },
+          {
+            id: "proposal",
+            title: "Proposta",
+            deals: []
+          },
+          {
+            id: "closing",
+            title: "Fechamento",
+            deals: [
+              {
+                id: "deal4",
+                title: "Manutenção de Sistemas",
+                description: "Contrato anual de manutenção",
+                client: "TechCorp Ltd",
+                clientId: "1",
+                companyName: "TechCorp Ltd",
+                contact: "João Silva",
+                value: 36000,
+                priority: "low",
+                stageId: "closing",
+                notes: []
+              }
+            ]
+          }
+        ]
+      }
+    ];
+    setPipelines(defaultPipelines);
+  };
+
+  const currentPipeline = pipelines.find(p => p.id === selectedPipeline) || {
+    id: "",
+    name: "",
+    stages: []
+  };
+
+  const toggleExpanded = (dealId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dealId)) {
+        newSet.delete(dealId);
+      } else {
+        newSet.add(dealId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDragEnd = (result: any) => {
+    const { source, destination, draggableId } = result;
+    
     if (!destination) {
       return;
     }
-
+    
     if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
     ) {
       return;
     }
-
-    const newDeals = [...deals];
-    const dealIndex = newDeals.findIndex(deal => deal.id === draggableId);
-    const deal = newDeals[dealIndex];
-    newDeals.splice(dealIndex, 1);
-    deal.stage = destination.droppableId as Deal['stage'];
-    newDeals.splice(destination.index, 0, deal);
-
-    setDeals(newDeals);
-
-    toast({
-      title: "Deal movido",
-      description: `O deal ${deal.title} foi movido para a fase de ${columns.find(column => column.id === destination.droppableId)?.title}.`,
+    
+    let draggedDeal: Deal | undefined;
+    let sourceStageIndex = -1;
+    
+    currentPipeline.stages.forEach((stage, stageIndex) => {
+      const foundDealIndex = stage.deals.findIndex(deal => deal.id === draggableId);
+      if (foundDealIndex !== -1) {
+        draggedDeal = stage.deals[foundDealIndex];
+        sourceStageIndex = stageIndex;
+      }
+    });
+    
+    if (!draggedDeal) return;
+    
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+        
+        const newStages = [...pipeline.stages];
+        
+        const sourceDeals = [...newStages[sourceStageIndex].deals];
+        const [removedDeal] = sourceDeals.splice(
+          source.index,
+          1
+        );
+        newStages[sourceStageIndex] = {
+          ...newStages[sourceStageIndex],
+          deals: sourceDeals
+        };
+        
+        const destStageIndex = newStages.findIndex(
+          stage => stage.id === destination.droppableId
+        );
+        
+        const destDeals = [...newStages[destStageIndex].deals];
+        destDeals.splice(
+          destination.index,
+          0,
+          { ...removedDeal, stageId: destination.droppableId }
+        );
+        newStages[destStageIndex] = {
+          ...newStages[destStageIndex],
+          deals: destDeals
+        };
+        
+        return { ...pipeline, stages: newStages };
+      });
     });
   };
 
-  const addDeal = () => {
-    const newId = Math.random().toString(36).substring(7);
-    const dealToAdd = { ...newDeal, id: newId };
-    setDeals([...deals, dealToAdd]);
-    setNewDeal({
+  // Helper function to get client display information
+  const getClientDisplayInfo = (deal: Deal) => {
+    const clientFromStorage = clients.find(c => c.id === deal.clientId);
+    
+    if (clientFromStorage) {
+      return {
+        name: clientFromStorage.name,
+        company: clientFromStorage.company
+      };
+    }
+    
+    return {
+      name: deal.contact || deal.client || "Contato não informado",
+      company: deal.companyName || deal.client || "Empresa não informada"
+    };
+  };
+
+  // Function to get company icon based on company name or type
+  const getCompanyIcon = (companyName: string) => {
+    const name = companyName.toLowerCase();
+    
+    if (name.includes('tech') || name.includes('software') || name.includes('digital')) {
+      return <Laptop className="h-4 w-4 text-blue-600" />;
+    }
+    if (name.includes('corp') || name.includes('corporation') || name.includes('enterprise')) {
+      return <Building2 className="h-4 w-4 text-gray-600" />;
+    }
+    if (name.includes('startup') || name.includes('innovation')) {
+      return <Zap className="h-4 w-4 text-yellow-600" />;
+    }
+    if (name.includes('store') || name.includes('shop') || name.includes('retail')) {
+      return <Store className="h-4 w-4 text-green-600" />;
+    }
+    if (name.includes('factory') || name.includes('manufacturing') || name.includes('industrial')) {
+      return <Factory className="h-4 w-4 text-orange-600" />;
+    }
+    if (name.includes('mobile') || name.includes('app') || name.includes('device')) {
+      return <Smartphone className="h-4 w-4 text-purple-600" />;
+    }
+    if (name.includes('web') || name.includes('internet') || name.includes('online')) {
+      return <Globe className="h-4 w-4 text-indigo-600" />;
+    }
+    if (name.includes('health') || name.includes('medical') || name.includes('care')) {
+      return <Heart className="h-4 w-4 text-red-600" />;
+    }
+    if (name.includes('security') || name.includes('safe') || name.includes('protect')) {
+      return <Shield className="h-4 w-4 text-emerald-600" />;
+    }
+    if (name.includes('transport') || name.includes('delivery') || name.includes('logistics')) {
+      return <Truck className="h-4 w-4 text-cyan-600" />;
+    }
+    
+    // Default icon for general business
+    return <Briefcase className="h-4 w-4 text-slate-600" />;
+  };
+
+  // Funções de edição inline
+  const handleEditTitle = (dealId: string, currentTitle: string) => {
+    setEditingTitle(dealId);
+    setTempTitle(currentTitle);
+  };
+
+  const handleSaveTitle = (dealId: string, stageId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, title: tempTitle };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingTitle(null);
+    setTempTitle("");
+  };
+
+  const handleEditDescription = (dealId: string, currentDescription: string = "") => {
+    setEditingDescription(dealId);
+    setTempDescription(currentDescription);
+  };
+
+  const handleSaveDescription = (dealId: string, stageId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, description: tempDescription };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingDescription(null);
+    setTempDescription("");
+  };
+
+  const handleEditValue = (dealId: string, currentValue: number = 0) => {
+    setEditingValue(dealId);
+    setTempValue(currentValue.toString());
+  };
+
+  const handleSaveValue = (dealId: string, stageId: string) => {
+    const numericValue = parseFloat(tempValue) || 0;
+    
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, value: numericValue };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingValue(null);
+    setTempValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTitle(null);
+    setEditingDescription(null);
+    setEditingValue(null);
+    setTempTitle("");
+    setTempDescription("");
+    setTempValue("");
+  };
+
+  const handleEditStage = (stageId: string, currentTitle: string) => {
+    setEditingStage(stageId);
+    setTempStageTitle(currentTitle);
+  };
+
+  const handleSaveStage = () => {
+    if (!editingStage || !tempStageTitle.trim()) return;
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id === editingStage) {
+            return { ...stage, title: tempStageTitle };
+          }
+          return stage;
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingStage(null);
+    setTempStageTitle("");
+  };
+
+  const handleCancelEditStage = () => {
+    setEditingStage(null);
+    setTempStageTitle("");
+  };
+
+  const handleAddStage = () => {
+    if (!newStageTitle.trim()) return;
+
+    const newStageId = `stage-${Date.now()}`;
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        return {
+          ...pipeline,
+          stages: [
+            ...pipeline.stages,
+            {
+              id: newStageId,
+              title: newStageTitle,
+              deals: []
+            }
+          ]
+        };
+      });
+    });
+
+    setAddingStage(false);
+    setNewStageTitle("");
+  };
+
+  const handleDeleteStage = (stageId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este estágio? Todos os deals serão removidos.")) {
+      setPipelines(prevPipelines => {
+        return prevPipelines.map(pipeline => {
+          if (pipeline.id !== selectedPipeline) return pipeline;
+
+          return {
+            ...pipeline,
+            stages: pipeline.stages.filter(stage => stage.id !== stageId)
+          };
+        });
+      });
+    }
+  };
+
+  const handleEditCard = (deal: Deal) => {
+    setEditingCard(deal.id);
+    const clientInfo = getClientDisplayInfo(deal);
+    setTempCardData({ 
+      ...deal,
+      contact: clientInfo.name,
+      companyName: clientInfo.company,
+      client: clientInfo.company
+    });
+    setIsEditDrawerOpen(true);
+  };
+
+  const handleSaveCard = (dealId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              const selectedClient = clients.find(c => c.id === tempCardData.clientId);
+              
+              return { 
+                ...deal, 
+                ...tempCardData,
+                client: selectedClient?.company || tempCardData.companyName || deal.client,
+                companyName: selectedClient?.company || tempCardData.companyName || deal.companyName,
+                contact: selectedClient?.name || tempCardData.contact || deal.contact
+              };
+            }
+            return deal;
+          });
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingCard(null);
+    setTempCardData({});
+    setIsEditDrawerOpen(false);
+  };
+
+  const handleDeleteCard = (dealId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este card?")) {
+      setPipelines(prevPipelines => {
+        return prevPipelines.map(pipeline => {
+          if (pipeline.id !== selectedPipeline) return pipeline;
+
+          const newStages = pipeline.stages.map(stage => {
+            return {
+              ...stage,
+              deals: stage.deals.filter(deal => deal.id !== dealId)
+            };
+          });
+
+          return { ...pipeline, stages: newStages };
+        });
+      });
+    }
+  };
+
+  const handleEditConfidential = (dealId: string, currentValue: string = "") => {
+    setEditingConfidential(dealId);
+    setTempConfidentialValue(currentValue);
+  };
+
+  const handleSaveConfidential = (dealId: string, stageId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, confidential: tempConfidentialValue };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingConfidential(null);
+    setTempConfidentialValue("");
+  };
+
+  const handleCancelEditConfidential = () => {
+    setEditingConfidential(null);
+    setTempConfidentialValue("");
+  };
+
+  const handleAddNote = (dealId: string, stageId: string) => {
+    if (!newNote.trim()) return;
+
+    const note: Note = {
+      id: `note-${Date.now()}`,
+      text: newNote,
+      date: new Date().toISOString().split('T')[0],
+      author: user?.name || "Usuário"
+    };
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { 
+                ...deal, 
+                notes: [...(deal.notes || []), note]
+              };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setNewNote("");
+  };
+
+  const handleDeleteNote = (dealId: string, stageId: string, noteId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId && deal.notes) {
+              return { 
+                ...deal, 
+                notes: deal.notes.filter(note => note.id !== noteId)
+              };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+  };
+
+  const handleAddPipeline = () => {
+    if (!newPipelineData.name.trim()) return;
+
+    const newPipeline: Pipeline = {
+      id: `pipeline-${Date.now()}`,
+      name: newPipelineData.name,
+      stages: [
+        {
+          id: `stage-${Date.now()}-1`,
+          title: "Novo Estágio",
+          deals: []
+        }
+      ]
+    };
+
+    setPipelines(prev => [...prev, newPipeline]);
+    setNewPipelineData({ name: "" });
+    setIsAddPipelineDialogOpen(false);
+  };
+
+  const handleEditPipeline = (pipelineId: string, currentName: string) => {
+    setEditingPipeline(pipelineId);
+    setTempPipelineName(currentName);
+  };
+
+  const handleSavePipeline = () => {
+    if (!editingPipeline || !tempPipelineName.trim()) return;
+
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id === editingPipeline) {
+          return { ...pipeline, name: tempPipelineName };
+        }
+        return pipeline;
+      });
+    });
+
+    setEditingPipeline(null);
+    setTempPipelineName("");
+  };
+
+  const handleDeletePipeline = (pipelineId: string) => {
+    if (pipelines.length <= 1) {
+      alert("Você não pode excluir o único pipeline existente.");
+      return;
+    }
+
+    if (window.confirm("Tem certeza que deseja excluir este pipeline? Todos os estágios e deals serão removidos.")) {
+      setPipelines(prev => prev.filter(pipeline => pipeline.id !== pipelineId));
+      
+      if (pipelineId === selectedPipeline) {
+        const remainingPipelines = pipelines.filter(p => p.id !== pipelineId);
+        if (remainingPipelines.length > 0) {
+          setSelectedPipeline(remainingPipelines[0].id);
+        }
+      }
+    }
+  };
+
+  const handleAddNewDeal = () => {
+    if (!newDealData.title.trim()) {
+      alert('O título é obrigatório');
+      return;
+    }
+    
+    if (!newDealData.stageId) {
+      alert('Selecione um estágio');
+      return;
+    }
+
+    const selectedClient = clients.find(c => c.id === newDealData.clientId);
+    
+    const newDeal: Deal = {
+      id: `deal-${Date.now()}`,
+      title: newDealData.title,
+      description: newDealData.description,
+      client: selectedClient?.company || "",
+      clientId: newDealData.clientId,
+      companyName: selectedClient?.company || "",
+      contact: selectedClient?.name || newDealData.contact,
+      priority: newDealData.priority,
+      stageId: newDealData.stageId,
+      notes: []
+    };
+
+    setPipelines(prevPipelines => {
+      const updatedPipelines = prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id === newDealData.stageId) {
+            return { ...stage, deals: [...stage.deals, newDeal] };
+          }
+          return stage;
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+      
+      return updatedPipelines;
+    });
+
+    setNewDealData({
       title: "",
-      company: "",
-      clientName: "",
-      clientAvatar: "",
-      value: 0,
-      stage: "prospecting",
-      priority: "medium",
-      dueDate: new Date().toISOString().split('T')[0],
-      description: ""
+      description: "",
+      clientId: "",
+      contact: "",
+      priority: "low",
+      stageId: ""
     });
-
-    toast({
-      title: "Novo deal adicionado",
-      description: `O deal ${dealToAdd.title} foi adicionado à fase de Prospecção.`,
-    });
+    setIsAddDealDialogOpen(false);
   };
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-100 text-red-800";
+      case "medium": return "bg-yellow-100 text-yellow-800";
+      case "low": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high": return "Alta";
+      case "medium": return "Média";
+      case "low": return "Baixa";
+      default: return priority;
+    }
+  };
+
+  const handleStageDoubleClick = (stageId: string, currentTitle: string) => {
+    if (!isClientView) {
+      setEditingStage(stageId);
+      setTempStageTitle(currentTitle);
+    }
+  };
+
+  const getFormattedValue = (value: number | undefined) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return "R$ 0,00";
+    }
+    return `R$ ${value.toLocaleString('pt-BR')}`;
+  };
+
+  const renderDealCard = (deal: Deal, index: number, stage: any) => {
+    const isExpanded = expandedCards.has(deal.id);
+    const clientInfo = getClientDisplayInfo(deal);
+    
+    return (
+      <Draggable
+        key={deal.id}
+        draggableId={deal.id}
+        index={index}
+        isDragDisabled={isClientView}
+      >
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
+          >
+            <div className="p-3">
+              <div className="flex justify-between items-start">
+                {/* Título editável inline */}
+                {editingTitle === deal.id ? (
+                  <div className="flex-1 mr-2">
+                    <Input
+                      value={tempTitle}
+                      onChange={(e) => setTempTitle(e.target.value)}
+                      className="text-sm font-medium"
+                      onBlur={() => handleSaveTitle(deal.id, stage.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveTitle(deal.id, stage.id);
+                        } else if (e.key === 'Escape') {
+                          handleCancelEdit();
+                        }
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <h4 
+                    className="font-medium text-slate-800 cursor-pointer hover:bg-slate-50 p-1 rounded flex-1"
+                    onDoubleClick={() => !isClientView && handleEditTitle(deal.id, deal.title)}
+                  >
+                    {deal.title}
+                  </h4>
+                )}
+                
+                <div className="flex items-center">
+                  <Badge className={getPriorityColor(deal.priority)}>
+                    {getPriorityLabel(deal.priority)}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleExpanded(deal.id)}
+                    className="h-7 w-7 p-0 ml-1"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Descrição editável inline */}
+              {editingDescription === deal.id ? (
+                <div className="mt-1">
+                  <Textarea
+                    value={tempDescription}
+                    onChange={(e) => setTempDescription(e.target.value)}
+                    className="text-sm min-h-[60px]"
+                    onBlur={() => handleSaveDescription(deal.id, stage.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        handleSaveDescription(deal.id, stage.id);
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                deal.description && (
+                  <p 
+                    className="text-sm text-slate-600 mt-1 line-clamp-2 cursor-pointer hover:bg-slate-50 p-1 rounded"
+                    onDoubleClick={() => !isClientView && handleEditDescription(deal.id, deal.description)}
+                  >
+                    {deal.description}
+                  </p>
+                )
+              )}
+              
+              {clientInfo.company && (
+                <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                  {getCompanyIcon(clientInfo.company)}
+                  <span>{clientInfo.company}</span>
+                </div>
+              )}
+
+              {clientInfo.name && (
+                <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                  <User className="h-3 w-3" />
+                  <span>{clientInfo.name}</span>
+                </div>
+              )}
+              
+              {/* Rest of the card content when expanded */}
+              {isExpanded && (
+                <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+                  {/* Valor editável inline - só aparece quando expandido */}
+                  {editingValue === deal.id ? (
+                    <div>
+                      <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+                      <Input
+                        type="number"
+                        value={tempValue}
+                        onChange={(e) => setTempValue(e.target.value)}
+                        className="text-sm"
+                        onBlur={() => handleSaveValue(deal.id, stage.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveValue(deal.id, stage.id);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          }
+                        }}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    deal.value && (
+                      <div>
+                        <label className="text-xs font-medium text-slate-700 block mb-1">Valor</label>
+                        <div 
+                          className="text-sm text-slate-600 cursor-pointer hover:bg-slate-50 p-1 rounded"
+                          onDoubleClick={() => !isClientView && handleEditValue(deal.id, deal.value)}
+                        >
+                          <span className="font-medium text-green-600">
+                            {getFormattedValue(deal.value)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  {/* Confidential Information */}
+                  <div className="bg-slate-50 rounded p-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1 text-xs font-medium text-slate-700">
+                        <Lock className="h-3 w-3" />
+                        <span>Informação Confidencial</span>
+                      </div>
+                      {!isClientView && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditConfidential(deal.id, deal.confidential)}
+                          className="h-5 w-5 p-0"
+                        >
+                          <PenSquare className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {editingConfidential === deal.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={tempConfidentialValue}
+                          onChange={(e) => setTempConfidentialValue(e.target.value)}
+                          placeholder="Informação confidencial..."
+                          className="text-xs min-h-[60px]"
+                        />
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSaveConfidential(deal.id, stage.id)}
+                            className="h-7 text-xs flex-1"
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Salvar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelEditConfidential}
+                            className="h-7 text-xs flex-1"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-600">
+                        {deal.confidential || "Nenhuma informação confidencial"}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Notes Section */}
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <MessageSquare className="h-3 w-3" />
+                      <span className="text-xs font-medium">Notas</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {deal.notes && deal.notes.length > 0 ? (
+                        deal.notes.map(note => (
+                          <div key={note.id} className="bg-slate-50 rounded p-2">
+                            <div className="flex justify-between">
+                              <p className="text-xs text-slate-600">{note.text}</p>
+                              {!isClientView && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteNote(deal.id, stage.id, note.id)}
+                                  className="h-5 w-5 p-0 -mt-1 -mr-1"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 mt-1">
+                              <Clock className="h-2 w-2 text-slate-400" />
+                              <span className="text-[10px] text-slate-400">
+                                {note.date} por {note.author}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">
+                          Nenhuma nota
+                        </p>
+                      )}
+                      
+                      {!isClientView && (
+                        <div className="pt-1">
+                          <Textarea
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            placeholder="Adicionar nota..."
+                            className="text-xs min-h-[60px]"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleAddNote(deal.id, stage.id)}
+                            className="mt-2 h-7 text-xs w-full"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Adicionar Nota
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {!isClientView && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditCard(deal)}
+                        className="flex-1 h-8"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteCard(deal.id)}
+                        className="flex-1 h-8 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Excluir
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Draggable>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-900">
-            {isClientView ? "Meus Projetos" : "Pipeline de Vendas"}
-          </h2>
-          <p className="text-slate-600">
-            {isClientView ? "Acompanhe o progresso dos seus projetos" : "Gerencie suas oportunidades de negócio"}
-          </p>
-        </div>
-        {!isClientView && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Deal
+    <div className="space-y-4">
+      {/* Header with Pipeline Selector and Actions */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Left side - Pipeline info and selector */}
+        <div className="flex items-center gap-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Pipeline Kanban</h2>
+            <p className="text-sm text-slate-600">Gerencie seus deals com drag & drop</p>
+          </div>
+          
+          {/* Pipeline Dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium whitespace-nowrap">Pipeline:</label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-48 justify-between">
+                  <span className="truncate">{currentPipeline.name || "Selecione um pipeline"}</span>
+                  <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {pipelines.map(pipeline => (
+                  <DropdownMenuItem 
+                    key={pipeline.id} 
+                    onClick={() => setSelectedPipeline(pipeline.id)}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="truncate">{pipeline.name}</span>
+                    {selectedPipeline === pipeline.id && <Check className="h-4 w-4 flex-shrink-0" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Pipeline Edit Mode */}
+          {editingPipeline && (
+            <div className="flex items-center gap-2">
+              <Input
+                value={tempPipelineName}
+                onChange={(e) => setTempPipelineName(e.target.value)}
+                className="h-8 w-40"
+                placeholder="Nome do pipeline"
+              />
+              <Button size="sm" variant="ghost" onClick={handleSavePipeline} className="h-8 w-8 p-0">
+                <Check className="h-4 w-4" />
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Deal</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="title">Título</Label>
+              <Button size="sm" variant="ghost" onClick={() => setEditingPipeline(null)} className="h-8 w-8 p-0">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        {/* Right side - Action Buttons */}
+        {!isClientView && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              Filtros
+            </Button>
+            
+            {/* Add Pipeline Button */}
+            <Dialog open={isAddPipelineDialogOpen} onOpenChange={setIsAddPipelineDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Pipeline
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo Pipeline</DialogTitle>
+                  <DialogDescription>
+                    Crie um novo pipeline para organizar seus deals
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Nome do Pipeline</label>
+                    <Input
+                      value={newPipelineData.name}
+                      onChange={(e) => setNewPipelineData({ ...newPipelineData, name: e.target.value })}
+                      placeholder="Ex: Vendas, Projetos, Marketing..."
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsAddPipelineDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleAddPipeline}>
+                      Criar Pipeline
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Add Deal Button */}
+            <Dialog open={isAddDealDialogOpen} onOpenChange={(open) => {
+              setIsAddDealDialogOpen(open);
+            }}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setIsAddDealDialogOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Novo Deal
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo Deal</DialogTitle>
+                  <DialogDescription>
+                    Adicione um novo deal ao seu pipeline
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Título *</label>
+                    <Input
+                      value={newDealData.title}
+                      onChange={(e) => {
+                        setNewDealData({ ...newDealData, title: e.target.value });
+                      }}
+                      placeholder="Nome do deal ou projeto"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Descrição</label>
+                    <Textarea
+                      value={newDealData.description}
+                      onChange={(e) => setNewDealData({ ...newDealData, description: e.target.value })}
+                      placeholder="Descrição do deal"
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Cliente</label>
+                    <Select
+                      value={newDealData.clientId}
+                      onValueChange={(value) => {
+                        setNewDealData({ ...newDealData, clientId: value });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name} ({client.company})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Contato</label>
+                    <Input
+                      value={newDealData.contact}
+                      onChange={(e) => setNewDealData({ ...newDealData, contact: e.target.value })}
+                      placeholder="Nome do contato (se não for um cliente cadastrado)"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Prioridade</label>
+                    <Select
+                      value={newDealData.priority}
+                      onValueChange={(value: "low" | "medium" | "high") => 
+                        setNewDealData({ ...newDealData, priority: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Baixa</SelectItem>
+                        <SelectItem value="medium">Média</SelectItem>
+                        <SelectItem value="high">Alta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Estágio *</label>
+                    <Select
+                      value={newDealData.stageId}
+                      onValueChange={(value) => {
+                        setNewDealData({ ...newDealData, stageId: value });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um estágio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currentPipeline.stages.map(stage => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            {stage.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => {
+                      setIsAddDealDialogOpen(false);
+                    }}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={() => {
+                      handleAddNewDeal();
+                    }}>
+                      Adicionar Deal
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+      </div>
+
+      {/* Kanban Board */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-6">
+          {currentPipeline.stages.map((stage) => (
+            <div key={stage.id} className="flex-shrink-0 w-80">
+              <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-200">
+                <div className="p-3 border-b border-slate-200 bg-slate-100 rounded-t-lg">
+                  {editingStage === stage.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={tempStageTitle}
+                        onChange={(e) => setTempStageTitle(e.target.value)}
+                        className="h-8"
+                      />
+                      <Button size="sm" variant="ghost" onClick={handleSaveStage} className="h-8 w-8 p-0">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={handleCancelEditStage} className="h-8 w-8 p-0">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <h3 
+                        className="font-medium text-slate-800 flex items-center cursor-pointer"
+                        onDoubleClick={() => handleStageDoubleClick(stage.id, stage.title)}
+                      >
+                        {stage.title}
+                        <Badge variant="outline" className="ml-2 bg-white">
+                          {stage.deals.length}
+                        </Badge>
+                      </h3>
+                    </div>
+                  )}
+                </div>
+                
+                <Droppable droppableId={stage.id}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="min-h-[200px] p-3 space-y-3"
+                    >
+                      {stage.deals.map((deal, index) => renderDealCard(deal, index, stage))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+                
+                {!isClientView && !addingStage && (
+                  <div className="p-3 border-t border-slate-200">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAddDealDialogOpen(true)}
+                      className="w-full justify-center text-slate-600 hover:text-slate-900"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar Card
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {!isClientView && (
+            <div className="flex-shrink-0 w-80">
+              {addingStage ? (
+                <div className="bg-slate-50 rounded-lg shadow-sm border border-slate-200 p-3">
+                  <h3 className="font-medium text-slate-800 mb-2">Novo Estágio</h3>
                   <Input
-                    id="title"
-                    value={newDeal.title}
-                    onChange={(e) => setNewDeal({...newDeal, title: e.target.value})}
-                    placeholder="Nome do deal"
+                    value={newStageTitle}
+                    onChange={(e) => setNewStageTitle(e.target.value)}
+                    placeholder="Nome do estágio"
+                    className="mb-3"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleAddStage} className="flex-1">
+                      <Check className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setAddingStage(false)} className="flex-1">
+                      <X className="h-4 w-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="border-dashed border-2 h-12 w-full"
+                  onClick={() => setAddingStage(true)}
+                >
+                  <Plus className="h-5 w-5 mr-1" />
+                  Adicionar Estágio
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </DragDropContext>
+
+      {/* Edit Deal Drawer */}
+      <Drawer open={isEditDrawerOpen} onOpenChange={setIsEditDrawerOpen}>
+        <DrawerContent>
+          <div className="mx-auto w-full max-w-sm">
+            <DrawerHeader>
+              <DrawerTitle>Editar Deal</DrawerTitle>
+              <DrawerDescription>
+                Atualize as informações do deal
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 pb-0">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Título</label>
+                  <Input
+                    value={tempCardData.title || ""}
+                    onChange={(e) => setTempCardData({ ...tempCardData, title: e.target.value })}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="company">Empresa</Label>
-                  <Input
-                    id="company"
-                    value={newDeal.company}
-                    onChange={(e) => setNewDeal({...newDeal, company: e.target.value})}
-                    placeholder="Nome da empresa"
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Descrição</label>
+                  <Textarea
+                    value={tempCardData.description || ""}
+                    onChange={(e) => setTempCardData({ ...tempCardData, description: e.target.value })}
+                    className="min-h-[100px]"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="clientName">Nome do Cliente</Label>
-                  <Input
-                    id="clientName"
-                    value={newDeal.clientName}
-                    onChange={(e) => setNewDeal({...newDeal, clientName: e.target.value})}
-                    placeholder="Nome do responsável"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="value">Valor (R$)</Label>
-                  <Input
-                    id="value"
-                    type="number"
-                    value={newDeal.value}
-                    onChange={(e) => setNewDeal({...newDeal, value: Number(e.target.value)})}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="priority">Prioridade</Label>
-                  <Select value={newDeal.priority} onValueChange={(value: Deal['priority']) => setNewDeal({...newDeal, priority: value})}>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Cliente</label>
+                  <Select
+                    value={tempCardData.clientId || ""}
+                    onValueChange={(value) => {
+                      const selectedClient = clients.find(c => c.id === value);
+                      setTempCardData({
+                        ...tempCardData,
+                        clientId: value,
+                        client: selectedClient?.company || "",
+                        companyName: selectedClient?.company || "",
+                        contact: selectedClient?.name || ""
+                      });
+                    }}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione a prioridade" />
+                      <SelectValue placeholder="Selecione um cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} ({client.company})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Contato</label>
+                  <Input
+                    value={tempCardData.contact || ""}
+                    onChange={(e) => setTempCardData({ ...tempCardData, contact: e.target.value })}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Valor (R$)</label>
+                  <Input
+                    type="number"
+                    value={tempCardData.value || ""}
+                    onChange={(e) => setTempCardData({ ...tempCardData, value: parseFloat(e.target.value) })}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Prioridade</label>
+                  <Select
+                    value={tempCardData.priority || "low"}
+                    onValueChange={(value: "low" | "medium" | "high") => 
+                      setTempCardData({ ...tempCardData, priority: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="low">Baixa</SelectItem>
@@ -294,153 +1653,22 @@ const KanbanBoard = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="dueDate">Data de Vencimento</Label>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={newDeal.dueDate}
-                    onChange={(e) => setNewDeal({...newDeal, dueDate: e.target.value})}
-                  />
+                
+                <div className="flex justify-end gap-2 pb-6">
+                  <Button variant="outline" onClick={() => setIsEditDrawerOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={() => handleSaveCard(editingCard || "")}>
+                    Salvar Alterações
+                  </Button>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={newDeal.description}
-                    onChange={(e) => setNewDeal({...newDeal, description: e.target.value})}
-                    placeholder="Detalhes do deal"
-                  />
-                </div>
-                <Button onClick={addDeal} className="w-full">
-                  Criar Deal
-                </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {columns.map((column) => (
-            <div key={column.id} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  {column.icon}
-                  {column.title}
-                </h3>
-                <Badge variant="secondary">
-                  {deals.filter(deal => deal.stage === column.id).length}
-                </Badge>
-              </div>
-              
-              <Droppable droppableId={column.id}>
-                {(provided, snapshot) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className={`min-h-[200px] space-y-3 p-2 rounded-lg transition-colors ${
-                      snapshot.isDraggingOver ? 'bg-blue-50' : 'bg-transparent'
-                    }`}
-                  >
-                    {deals
-                      .filter(deal => deal.stage === column.id)
-                      .map((deal, index) => (
-                        <Draggable key={deal.id} draggableId={deal.id} index={index}>
-                          {(provided, snapshot) => (
-                            <Card
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
-                                snapshot.isDragging ? 'shadow-lg rotate-2' : ''
-                              }`}
-                            >
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-2">
-                                      {getCompanyIcon(deal.company)}
-                                      <h4 className="font-medium text-sm leading-tight">
-                                        {deal.title}
-                                      </h4>
-                                    </div>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                      <MoreHorizontal className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                  
-                                  <div className="space-y-2">
-                                    <p className="text-xs text-muted-foreground">
-                                      {deal.company}
-                                    </p>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarImage src={deal.clientAvatar} alt={deal.clientName} />
-                                        <AvatarFallback className="text-xs">
-                                          {deal.clientName.split(' ').map(n => n[0]).join('')}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-xs text-muted-foreground">
-                                        {deal.clientName}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3 text-green-600" />
-                                      <span className="text-sm font-medium text-green-600">
-                                        {formatCurrency(deal.value)}
-                                      </span>
-                                    </div>
-                                    <Badge 
-                                      variant={
-                                        deal.priority === 'high' ? 'destructive' : 
-                                        deal.priority === 'medium' ? 'default' : 'secondary'
-                                      }
-                                      className="text-xs"
-                                    >
-                                      {deal.priority === 'high' ? 'Alta' : 
-                                       deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                                    </Badge>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Calendar className="h-3 w-3" />
-                                    {new Date(deal.dueDate).toLocaleDateString('pt-BR')}
-                                  </div>
-                                  
-                                  {deal.description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                      {deal.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </Draggable>
-                      ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
             </div>
-          ))}
-        </div>
-      </DragDropContext>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
 
 export default KanbanBoard;
-
-import {
-  Search,
-  FileText,
-  CheckCircle,
-  TrendingUp
-} from "lucide-react";
