@@ -35,19 +35,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('AuthProvider: Starting initialization');
     let mounted = true;
+    let sessionInitialized = false;
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event, session?.user?.id);
+        console.log('Auth event:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id);
         
-        if (!mounted) return;
+        if (!mounted) {
+          console.log('Component unmounted, ignoring auth event');
+          return;
+        }
         
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile from our profiles table
+          console.log('Fetching profile for user:', session.user.id);
           try {
             const { data: profile, error } = await supabase
               .from('profiles')
@@ -61,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.error('Error fetching profile:', error);
               setUser(null);
             } else if (profile) {
+              console.log('Profile loaded:', profile);
               setUser({
                 id: profile.id,
                 name: profile.name,
@@ -68,6 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 role: profile.role as 'admin' | 'client',
                 status: profile.status as 'pending' | 'approved' | 'rejected'
               });
+            } else {
+              console.log('No profile found for user');
+              setUser(null);
             }
           } catch (error) {
             console.error('Error in auth state change:', error);
@@ -76,12 +85,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         } else {
+          console.log('No session, clearing user');
           if (mounted) {
             setUser(null);
           }
         }
         
-        if (mounted) {
+        // Only set loading to false after we've processed the initial session
+        if (mounted && !sessionInitialized) {
+          console.log('Session initialized, setting loading to false');
+          sessionInitialized = true;
           setIsLoading(false);
         }
       }
@@ -90,15 +103,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for existing session
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
         }
-        console.log('Initial session:', session?.user?.id);
-        // The onAuthStateChange will handle setting the user
+        console.log('Initial session retrieved:', !!session, 'User ID:', session?.user?.id);
+        
+        // If no session, we can stop loading immediately
+        if (!session && mounted) {
+          console.log('No initial session found, stopping loading');
+          sessionInitialized = true;
+          setIsLoading(false);
+        }
+        // If there is a session, the onAuthStateChange will handle it
       } catch (error) {
         console.error('Error getting initial session:', error);
         if (mounted) {
+          console.log('Error getting session, stopping loading');
+          sessionInitialized = true;
           setIsLoading(false);
         }
       }
@@ -106,8 +129,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     getInitialSession();
 
+    // Fallback: if nothing happens within 5 seconds, stop loading
+    const fallbackTimer = setTimeout(() => {
+      if (mounted && !sessionInitialized) {
+        console.log('Fallback: Stopping loading after 5 seconds');
+        sessionInitialized = true;
+        setIsLoading(false);
+      }
+    }, 5000);
+
     return () => {
+      console.log('AuthProvider: Cleaning up');
       mounted = false;
+      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
   }, []);
@@ -158,6 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Logout error:', error);
     }
   };
+
+  console.log('AuthProvider render - isLoading:', isLoading, 'user:', !!user, 'session:', !!session);
 
   return (
     <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
