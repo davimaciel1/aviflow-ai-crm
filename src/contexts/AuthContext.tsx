@@ -8,6 +8,7 @@ interface UserProfile {
   name: string;
   email: string;
   role: 'admin' | 'client';
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 interface AuthContextType {
@@ -53,7 +54,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.error('Error fetching profile:', error);
               setUser(null);
             } else {
-              setUser(profile);
+              setUser({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as 'admin' | 'client',
+                status: profile.status as 'pending' | 'approved' | 'rejected'
+              });
             }
           } catch (error) {
             console.error('Error in auth state change:', error);

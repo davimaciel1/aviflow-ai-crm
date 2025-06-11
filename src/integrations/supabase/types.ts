@@ -111,6 +111,36 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          token: string
+          used: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          token: string
+          used?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          token?: string
+          used?: boolean
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           author_id: string
@@ -177,6 +207,7 @@ export type Database = {
           id: string
           name: string
           role: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -185,6 +216,7 @@ export type Database = {
           id: string
           name: string
           role?: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -193,6 +225,7 @@ export type Database = {
           id?: string
           name?: string
           role?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -237,7 +270,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      use_invitation_token: {
+        Args: { invitation_token: string; user_email: string }
+        Returns: undefined
+      }
+      validate_invitation_token: {
+        Args: { invitation_token: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
