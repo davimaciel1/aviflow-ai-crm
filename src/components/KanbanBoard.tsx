@@ -87,6 +87,19 @@ const KanbanBoard = () => {
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
+  // Get clients from localStorage
+  const getClientsFromStorage = () => {
+    try {
+      const storedClients = localStorage.getItem('clients');
+      return storedClients ? JSON.parse(storedClients) : [];
+    } catch (error) {
+      console.error('Error loading clients:', error);
+      return [];
+    }
+  };
+
+  const clients = getClientsFromStorage();
+
   // Lista de empresas disponíveis
   const companies = [
     { id: "techcorp", name: "TechCorp Ltd" },
@@ -1070,25 +1083,29 @@ const KanbanBoard = () => {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Empresa</label>
+                  <label className="text-sm font-medium mb-2 block">Cliente</label>
                   <Select
                     value={tempCardData.clientId || ""}
                     onValueChange={(value) => {
-                      const selectedCompany = companies.find(c => c.id === value);
+                      const selectedClient = clients.find((c: any) => c.id === value);
                       setTempCardData(prev => ({ 
                         ...prev, 
                         clientId: value,
-                        companyName: selectedCompany?.name || ""
+                        companyName: selectedClient?.companyName || "",
+                        client: selectedClient?.companyName || ""
                       }));
                     }}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecionar empresa" />
+                      <SelectValue placeholder="Selecionar cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
+                      {clients.map((client: any) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          <div className="flex items-center gap-2">
+                            <Building className="w-4 h-4" />
+                            {client.companyName}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
