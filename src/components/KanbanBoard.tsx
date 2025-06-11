@@ -87,11 +87,13 @@ const KanbanBoard = () => {
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  // Get clients from localStorage
+  // Get clients from localStorage with error handling
   const getClientsFromStorage = () => {
     try {
       const storedClients = localStorage.getItem('clients');
-      return storedClients ? JSON.parse(storedClients) : [];
+      const clients = storedClients ? JSON.parse(storedClients) : [];
+      console.log('Loaded clients from storage:', clients);
+      return clients;
     } catch (error) {
       console.error('Error loading clients:', error);
       return [];
@@ -99,6 +101,7 @@ const KanbanBoard = () => {
   };
 
   const clients = getClientsFromStorage();
+  console.log('Available clients for dropdown:', clients);
 
   // Lista de empresas disponíveis
   const companies = [
@@ -1087,7 +1090,9 @@ const KanbanBoard = () => {
                   <Select
                     value={tempCardData.clientId || ""}
                     onValueChange={(value) => {
+                      console.log('Selected client ID:', value);
                       const selectedClient = clients.find((c: any) => c.id === value);
+                      console.log('Selected client object:', selectedClient);
                       setTempCardData(prev => ({ 
                         ...prev, 
                         clientId: value,
@@ -1100,14 +1105,20 @@ const KanbanBoard = () => {
                       <SelectValue placeholder="Selecionar cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients.map((client: any) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          <div className="flex items-center gap-2">
-                            <Building className="w-4 h-4" />
-                            {client.companyName}
-                          </div>
+                      {clients.length > 0 ? (
+                        clients.map((client: any) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            <div className="flex items-center gap-2">
+                              <Building className="w-4 h-4" />
+                              {client.companyName}
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-clients" disabled>
+                          Nenhum cliente cadastrado
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
