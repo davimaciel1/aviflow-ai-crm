@@ -33,7 +33,17 @@ import {
   MessageSquare,
   Lock,
   Unlock,
-  PenSquare
+  PenSquare,
+  Factory,
+  Store,
+  Briefcase,
+  Laptop,
+  Smartphone,
+  Globe,
+  Zap,
+  Heart,
+  Shield,
+  Truck
 } from "lucide-react";
 
 interface Client {
@@ -400,6 +410,45 @@ const KanbanBoard = () => {
       name: deal.contact || deal.client || "Contato não informado",
       company: deal.companyName || deal.client || "Empresa não informada"
     };
+  };
+
+  // Function to get company icon based on company name or type
+  const getCompanyIcon = (companyName: string) => {
+    const name = companyName.toLowerCase();
+    
+    if (name.includes('tech') || name.includes('software') || name.includes('digital')) {
+      return <Laptop className="h-4 w-4 text-blue-600" />;
+    }
+    if (name.includes('corp') || name.includes('corporation') || name.includes('enterprise')) {
+      return <Building2 className="h-4 w-4 text-gray-600" />;
+    }
+    if (name.includes('startup') || name.includes('innovation')) {
+      return <Zap className="h-4 w-4 text-yellow-600" />;
+    }
+    if (name.includes('store') || name.includes('shop') || name.includes('retail')) {
+      return <Store className="h-4 w-4 text-green-600" />;
+    }
+    if (name.includes('factory') || name.includes('manufacturing') || name.includes('industrial')) {
+      return <Factory className="h-4 w-4 text-orange-600" />;
+    }
+    if (name.includes('mobile') || name.includes('app') || name.includes('device')) {
+      return <Smartphone className="h-4 w-4 text-purple-600" />;
+    }
+    if (name.includes('web') || name.includes('internet') || name.includes('online')) {
+      return <Globe className="h-4 w-4 text-indigo-600" />;
+    }
+    if (name.includes('health') || name.includes('medical') || name.includes('care')) {
+      return <Heart className="h-4 w-4 text-red-600" />;
+    }
+    if (name.includes('security') || name.includes('safe') || name.includes('protect')) {
+      return <Shield className="h-4 w-4 text-emerald-600" />;
+    }
+    if (name.includes('transport') || name.includes('delivery') || name.includes('logistics')) {
+      return <Truck className="h-4 w-4 text-cyan-600" />;
+    }
+    
+    // Default icon for general business
+    return <Briefcase className="h-4 w-4 text-slate-600" />;
   };
 
   // Funções de edição inline
@@ -984,8 +1033,8 @@ const KanbanBoard = () => {
               )}
               
               {clientInfo.company && (
-                <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
-                  <Building2 className="h-3 w-3" />
+                <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                  {getCompanyIcon(clientInfo.company)}
                   <span>{clientInfo.company}</span>
                 </div>
               )}
