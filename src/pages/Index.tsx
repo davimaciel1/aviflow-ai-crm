@@ -16,9 +16,21 @@ import UserManagement from "@/components/UserManagement";
 const Index = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("pipeline");
+  
+  // App settings state
+  const [appName, setAppName] = useState("DaviFlow CRM");
+  const [appIcon, setAppIcon] = useState("");
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleAppNameChange = (newName: string) => {
+    setAppName(newName);
+  };
+
+  const handleAppIconChange = (newIcon: string) => {
+    setAppIcon(newIcon);
   };
 
   if (!user) {
@@ -34,9 +46,20 @@ const Index = () => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">D</span>
+                  {appIcon && (appIcon.startsWith('http') || appIcon.startsWith('/')) ? (
+                    <img 
+                      src={appIcon} 
+                      alt="App Icon" 
+                      className="w-full h-full rounded-lg object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-sm">D</span>
+                  )}
                 </div>
-                <h1 className="text-xl font-bold text-slate-900">DaviFlow CRM</h1>
+                <h1 className="text-xl font-bold text-slate-900">{appName}</h1>
               </div>
               <Badge variant="outline" className="ml-4">
                 {user.role === 'admin' ? 'Administrador' : 'Cliente'}
@@ -110,7 +133,12 @@ const Index = () => {
             )}
 
             <TabsContent value="settings">
-              <AppSettings />
+              <AppSettings 
+                currentAppName={appName}
+                currentAppIcon={appIcon}
+                onAppNameChange={handleAppNameChange}
+                onAppIconChange={handleAppIconChange}
+              />
             </TabsContent>
           </div>
         </Tabs>
