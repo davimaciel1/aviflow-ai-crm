@@ -16,25 +16,62 @@ const ResetPassword = () => {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isValidSession, setIsValidSession] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Verificar se há uma sessão de recuperação válida
-    const checkSession = async () => {
+    const handleAuthRedirect = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
+        console.log('Checking URL for auth tokens...');
+        
+        // Check if there's a hash with auth tokens in the URL
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        console.log('Hash params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
+
+        if (accessToken && refreshToken && type === 'recovery') {
+          console.log('Setting session with tokens from URL...');
+          
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) {
+            console.error('Error setting session:', error);
+            setError("Link de recuperação inválido ou expirado");
+            setIsCheckingSession(false);
+            return;
+          }
+
+          console.log('Session set successfully:', !!data.session);
           setIsValidSession(true);
+          
+          // Clean up the URL
+          window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-          setError("Link de recuperação inválido ou expirado");
+          // Check for existing session
+          const { data: { session } } = await supabase.auth.getSession();
+          console.log('Existing session:', !!session);
+          
+          if (session) {
+            setIsValidSession(true);
+          } else {
+            setError("Link de recuperação inválido ou expirado");
+          }
         }
       } catch (error) {
-        console.error('Erro ao verificar sessão:', error);
+        console.error('Error handling auth redirect:', error);
         setError("Erro ao verificar link de recuperação");
+      } finally {
+        setIsCheckingSession(false);
       }
     };
 
-    checkSession();
+    handleAuthRedirect();
   }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -62,6 +99,7 @@ const ResetPassword = () => {
     }
 
     try {
+      console.log('Updating password...');
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -73,6 +111,7 @@ const ResetPassword = () => {
         return;
       }
 
+      console.log('Password updated successfully');
       setSuccess("Senha atualizada com sucesso!");
       
       // Redirecionar para login após 2 segundos
@@ -88,7 +127,7 @@ const ResetPassword = () => {
     }
   };
 
-  if (!isValidSession && !error) {
+  if (isCheckingSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
         <div className="flex items-center space-x-2">
