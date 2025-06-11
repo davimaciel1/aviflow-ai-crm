@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +16,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showSignup, setShowSignup] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { login, isLoading } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -102,6 +102,34 @@ const Login = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (!email) {
+      setError("Por favor, digite seu email");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`
+      });
+
+      if (error) {
+        setError("Erro ao enviar email de recuperação. Tente novamente.");
+        return;
+      }
+
+      setSuccess("Email de recuperação enviado! Verifique sua caixa de entrada.");
+      setShowForgotPassword(false);
+    } catch (error) {
+      console.error('Password reset error:', error);
+      setError("Erro inesperado. Tente novamente.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -112,13 +140,62 @@ const Login = () => {
             </div>
             <h1 className="text-xl font-bold text-slate-900">DaviFlow CRM</h1>
           </div>
-          <CardTitle>{showSignup ? "Criar Conta" : "Acesse sua conta"}</CardTitle>
+          <CardTitle>
+            {showForgotPassword ? "Recuperar Senha" : showSignup ? "Criar Conta" : "Acesse sua conta"}
+          </CardTitle>
           <CardDescription>
-            {showSignup ? "Use seu token de convite para criar uma conta" : "Faça login com suas credenciais"}
+            {showForgotPassword 
+              ? "Digite seu email para receber instruções de recuperação"
+              : showSignup 
+                ? "Use seu token de convite para criar uma conta" 
+                : "Faça login com suas credenciais"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!showSignup ? (
+          {showForgotPassword ? (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {success && (
+                <Alert>
+                  <AlertDescription>{success}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? "Enviando..." : "Enviar Email de Recuperação"}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Voltar ao login
+                </button>
+              </div>
+            </form>
+          ) : !showSignup ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -162,7 +239,14 @@ const Login = () => {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
 
-              <div className="text-center">
+              <div className="text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-blue-600 hover:underline block w-full"
+                >
+                  Esqueci minha senha
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowSignup(true)}
