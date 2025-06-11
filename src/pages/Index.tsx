@@ -137,12 +137,6 @@ const Index = () => {
                   {isClientView ? "Acompanhe o progresso dos seus projetos" : "Visão geral do seu negócio com insights de IA"}
                 </p>
               </div>
-              {!isClientView && (
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Deal
-                </Button>
-              )}
             </div>
 
             {/* Metrics Cards */}
@@ -298,15 +292,9 @@ const Index = () => {
               </div>
               <div className="flex gap-2">
                 {!isClientView && (
-                  <>
-                    <Button variant="outline">
-                      Filtros
-                    </Button>
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Novo Deal
-                    </Button>
-                  </>
+                  <Button variant="outline">
+                    Filtros
+                  </Button>
                 )}
               </div>
             </div>
