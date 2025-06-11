@@ -87,12 +87,48 @@ const KanbanBoard = () => {
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  // Get clients from localStorage with error handling
+  // Get clients from localStorage with comprehensive checking
   const getClientsFromStorage = () => {
     try {
-      const storedClients = localStorage.getItem('clients');
-      const clients = storedClients ? JSON.parse(storedClients) : [];
-      console.log('Loaded clients from storage:', clients);
+      console.log('Checking localStorage for clients...');
+      
+      // Check all possible keys where clients might be stored
+      const possibleKeys = ['clients', 'clientsList', 'company_clients', 'user_clients'];
+      let clients = [];
+      
+      for (const key of possibleKeys) {
+        const storedData = localStorage.getItem(key);
+        console.log(`Checking key "${key}":`, storedData);
+        
+        if (storedData) {
+          try {
+            const parsedData = JSON.parse(storedData);
+            console.log(`Parsed data for "${key}":`, parsedData);
+            
+            if (Array.isArray(parsedData) && parsedData.length > 0) {
+              clients = parsedData;
+              console.log(`Found clients in key "${key}":`, clients);
+              break;
+            }
+          } catch (parseError) {
+            console.error(`Error parsing data for key "${key}":`, parseError);
+          }
+        }
+      }
+      
+      // Also check if there are any keys that contain 'client' in the name
+      console.log('All localStorage keys:', Object.keys(localStorage));
+      const allKeys = Object.keys(localStorage);
+      const clientKeys = allKeys.filter(key => key.toLowerCase().includes('client'));
+      console.log('Keys containing "client":', clientKeys);
+      
+      clientKeys.forEach(key => {
+        if (!possibleKeys.includes(key)) {
+          const data = localStorage.getItem(key);
+          console.log(`Additional client key "${key}":`, data);
+        }
+      });
+      
       return clients;
     } catch (error) {
       console.error('Error loading clients:', error);
@@ -101,7 +137,7 @@ const KanbanBoard = () => {
   };
 
   const clients = getClientsFromStorage();
-  console.log('Available clients for dropdown:', clients);
+  console.log('Final clients array for dropdown:', clients);
 
   // Lista de empresas disponíveis
   const companies = [
@@ -1087,40 +1123,45 @@ const KanbanBoard = () => {
                 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Cliente</label>
-                  <Select
-                    value={tempCardData.clientId || ""}
-                    onValueChange={(value) => {
-                      console.log('Selected client ID:', value);
-                      const selectedClient = clients.find((c: any) => c.id === value);
-                      console.log('Selected client object:', selectedClient);
-                      setTempCardData(prev => ({ 
-                        ...prev, 
-                        clientId: value,
-                        companyName: selectedClient?.companyName || "",
-                        client: selectedClient?.companyName || ""
-                      }));
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.length > 0 ? (
-                        clients.map((client: any) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            <div className="flex items-center gap-2">
-                              <Building className="w-4 h-4" />
-                              {client.companyName}
-                            </div>
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-500">
+                      Debug: {clients.length} clientes encontrados
+                    </div>
+                    <Select
+                      value={tempCardData.clientId || ""}
+                      onValueChange={(value) => {
+                        console.log('Selected client ID:', value);
+                        const selectedClient = clients.find((c: any) => c.id === value);
+                        console.log('Selected client object:', selectedClient);
+                        setTempCardData(prev => ({ 
+                          ...prev, 
+                          clientId: value,
+                          companyName: selectedClient?.companyName || "",
+                          client: selectedClient?.companyName || ""
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecionar cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.length > 0 ? (
+                          clients.map((client: any) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              <div className="flex items-center gap-2">
+                                <Building className="w-4 h-4" />
+                                {client.companyName || client.name || client.company || 'Cliente sem nome'}
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-clients" disabled>
+                            Nenhum cliente cadastrado - Verifique a aba Clientes
                           </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-clients" disabled>
-                          Nenhum cliente cadastrado
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 
                 <div>
@@ -1283,3 +1324,5 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
+
+</edits_to_apply>
