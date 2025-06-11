@@ -17,7 +17,8 @@ import {
   Bell,
   Search,
   Plus,
-  LogOut
+  LogOut,
+  Building2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import KanbanBoard from "@/components/KanbanBoard";
@@ -59,7 +60,7 @@ const Index = () => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">D</span>
+                  <Building2 className="text-white w-5 h-5" />
                 </div>
                 <h1 className="text-xl font-bold text-slate-900">
                   DaviFlow CRM {isClientView && "- Portal do Cliente"}
@@ -281,23 +282,6 @@ const Index = () => {
 
           {/* Kanban Tab */}
           <TabsContent value="kanban" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900">
-                  {isClientView ? "Meus Projetos" : "Pipeline Kanban"}
-                </h2>
-                <p className="text-slate-600">
-                  {isClientView ? "Acompanhe o progresso dos seus projetos" : "Gerencie seus deals com drag & drop"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {!isClientView && (
-                  <Button variant="outline">
-                    Filtros
-                  </Button>
-                )}
-              </div>
-            </div>
             <KanbanBoard />
           </TabsContent>
 
