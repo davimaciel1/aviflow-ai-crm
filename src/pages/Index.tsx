@@ -331,16 +331,6 @@ const Index = () => {
           {/* Clients Tab */}
           {!isClientView && (
             <TabsContent value="clients" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-3xl font-bold text-slate-900">Clientes</h2>
-                  <p className="text-slate-600">Gerencie sua base de clientes</p>
-                </div>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Cliente
-                </Button>
-              </div>
               <ClientsList />
             </TabsContent>
           )}
