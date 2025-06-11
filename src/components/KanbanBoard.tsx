@@ -795,6 +795,14 @@ const KanbanBoard = () => {
     }
   };
 
+  // Função para lidar com duplo clique no nome do estágio
+  const handleStageDoubleClick = (stageId: string, currentTitle: string) => {
+    if (!isClientView) {
+      setEditingStage(stageId);
+      setTempStageTitle(currentTitle);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header with Pipeline Selector and Actions */}
@@ -1043,32 +1051,15 @@ const KanbanBoard = () => {
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-slate-800 flex items-center">
+                      <h3 
+                        className="font-medium text-slate-800 flex items-center cursor-pointer"
+                        onDoubleClick={() => handleStageDoubleClick(stage.id, stage.title)}
+                      >
                         {stage.title}
                         <Badge variant="outline" className="ml-2 bg-white">
                           {stage.deals.length}
                         </Badge>
                       </h3>
-                      {!isClientView && (
-                        <div className="flex items-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditStage(stage.id, stage.title)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteStage(stage.id)}
-                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
