@@ -396,7 +396,10 @@ const KanbanBoard = () => {
     return stage.deals.length;
   };
 
-  const getFormattedValue = (value: number) => {
+  const getFormattedValue = (value: number | undefined) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return "R$ 0,00";
+    }
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
@@ -494,7 +497,7 @@ const KanbanBoard = () => {
                           </div>
 
                           <div className="flex items-center justify-between text-xs text-slate-600">
-                            <span>{deal.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            <span>{getFormattedValue(deal.value)}</span>
                             <Badge variant="outline">
                               {stage.name}
                             </Badge>
@@ -593,7 +596,7 @@ const KanbanBoard = () => {
               <Input
                 type="number"
                 value={newCardData.value || ""}
-                onChange={(e) => setNewCardData(prev => ({ ...prev, value: parseFloat(e.target.value) }))}
+                onChange={(e) => setNewCardData(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
                 placeholder="Valor estimado do negócio"
               />
             </div>
@@ -688,7 +691,7 @@ const KanbanBoard = () => {
               <Input
                 type="number"
                 value={tempCardData.value || ""}
-                onChange={(e) => setTempCardData(prev => ({ ...prev, value: parseFloat(e.target.value) }))}
+                onChange={(e) => setTempCardData(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
                 placeholder="Valor estimado do negócio"
               />
             </div>
@@ -711,3 +714,5 @@ const KanbanBoard = () => {
 };
 
 export default KanbanBoard;
+
+}
