@@ -816,5 +816,3 @@ const ClientsList = () => {
 };
 
 export default ClientsList;
-
-}
