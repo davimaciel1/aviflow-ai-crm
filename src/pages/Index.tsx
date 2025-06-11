@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,9 +27,12 @@ import ClientsList from "@/components/ClientsList";
 import TasksList from "@/components/TasksList";
 import AIInsights from "@/components/AIInsights";
 import KanbanConfigPanel from "@/components/KanbanConfigPanel";
+import AppSettings from "@/components/AppSettings";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [appName, setAppName] = useState("DaviFlow CRM");
+  const [appIcon, setAppIcon] = useState("");
   const { user, logout } = useAuth();
   const isClientView = user?.role === 'client';
 
@@ -51,6 +55,42 @@ const Index = () => {
 
   const availableTabs = getAvailableTabs();
 
+  const handleAppNameChange = (newName: string) => {
+    setAppName(newName);
+    // Update document title
+    document.title = newName;
+  };
+
+  const handleAppIconChange = (newIcon: string) => {
+    setAppIcon(newIcon);
+    // Update favicon
+    const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    link.href = newIcon;
+    document.getElementsByTagName('head')[0].appendChild(link);
+  };
+
+  const renderAppIcon = () => {
+    if (appIcon && (appIcon.startsWith('http') || appIcon.startsWith('/'))) {
+      return (
+        <img 
+          src={appIcon} 
+          alt="App Icon" 
+          className="w-8 h-8 rounded-lg object-cover"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      );
+    }
+    return (
+      <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+        <Building2 className="text-white w-5 h-5" />
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
@@ -59,11 +99,9 @@ const Index = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <Building2 className="text-white w-5 h-5" />
-                </div>
+                {renderAppIcon()}
                 <h1 className="text-xl font-bold text-slate-900">
-                  DaviFlow CRM {isClientView && "- Portal do Cliente"}
+                  {appName} {isClientView && "- Portal do Cliente"}
                 </h1>
               </div>
             </div>
@@ -320,11 +358,21 @@ const Index = () => {
                 <p className="text-slate-600">Configure seu CRM</p>
               </div>
               
-              <Tabs defaultValue="kanban" className="space-y-4">
+              <Tabs defaultValue="app" className="space-y-4">
                 <TabsList>
+                  <TabsTrigger value="app">App</TabsTrigger>
                   <TabsTrigger value="kanban">Kanban</TabsTrigger>
                   <TabsTrigger value="system">Sistema</TabsTrigger>
                 </TabsList>
+                
+                <TabsContent value="app">
+                  <AppSettings 
+                    currentAppName={appName}
+                    currentAppIcon={appIcon}
+                    onAppNameChange={handleAppNameChange}
+                    onAppIconChange={handleAppIconChange}
+                  />
+                </TabsContent>
                 
                 <TabsContent value="kanban">
                   <KanbanConfigPanel />
