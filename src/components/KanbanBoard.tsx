@@ -95,6 +95,14 @@ const KanbanBoard = () => {
   const [newNote, setNewNote] = useState<string>("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   
+  // Estados para edição inline
+  const [editingTitle, setEditingTitle] = useState<string | null>(null);
+  const [editingDescription, setEditingDescription] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | null>(null);
+  const [tempTitle, setTempTitle] = useState<string>("");
+  const [tempDescription, setTempDescription] = useState<string>("");
+  const [tempValue, setTempValue] = useState<string>("");
+  
   // Novos estados para adicionar cliente
   const [isAddClientDialogOpen, setIsAddClientDialogOpen] = useState<boolean>(false);
   const [newClientData, setNewClientData] = useState({
@@ -291,46 +299,6 @@ const KanbanBoard = () => {
             ]
           }
         ]
-      },
-      {
-        id: "projects",
-        name: "Projetos Ativos",
-        stages: [
-          {
-            id: "planning",
-            title: "Planejamento",
-            deals: []
-          },
-          {
-            id: "execution",
-            title: "Execução",
-            deals: [
-              {
-                id: "project1",
-                title: "Redesign de Marca",
-                description: "Atualização de identidade visual",
-                client: "StartupXYZ",
-                clientId: "2",
-                companyName: "StartupXYZ",
-                contact: "Maria Santos",
-                value: 18000,
-                priority: "medium",
-                stageId: "execution",
-                notes: []
-              }
-            ]
-          },
-          {
-            id: "review",
-            title: "Revisão",
-            deals: []
-          },
-          {
-            id: "delivered",
-            title: "Entregue",
-            deals: []
-          }
-        ]
       }
     ];
     setPipelines(defaultPipelines);
@@ -357,12 +325,10 @@ const KanbanBoard = () => {
   const handleDragEnd = (result: any) => {
     const { source, destination, draggableId } = result;
     
-    // Dropped outside the list
     if (!destination) {
       return;
     }
     
-    // Dropped in the same position
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
@@ -370,7 +336,6 @@ const KanbanBoard = () => {
       return;
     }
     
-    // Find the deal that was dragged
     let draggedDeal: Deal | undefined;
     let sourceStageIndex = -1;
     
@@ -384,14 +349,12 @@ const KanbanBoard = () => {
     
     if (!draggedDeal) return;
     
-    // Create a new pipeline with the updated stages
     setPipelines(prevPipelines => {
       return prevPipelines.map(pipeline => {
         if (pipeline.id !== selectedPipeline) return pipeline;
         
         const newStages = [...pipeline.stages];
         
-        // Remove from source
         const sourceDeals = [...newStages[sourceStageIndex].deals];
         const [removedDeal] = sourceDeals.splice(
           source.index,
@@ -402,12 +365,10 @@ const KanbanBoard = () => {
           deals: sourceDeals
         };
         
-        // Find destination stage index
         const destStageIndex = newStages.findIndex(
           stage => stage.id === destination.droppableId
         );
         
-        // Add to destination
         const destDeals = [...newStages[destStageIndex].deals];
         destDeals.splice(
           destination.index,
@@ -426,23 +387,124 @@ const KanbanBoard = () => {
 
   // Helper function to get client display information
   const getClientDisplayInfo = (deal: Deal) => {
-    // First try to find the client by clientId
     const clientFromStorage = clients.find(c => c.id === deal.clientId);
     
     if (clientFromStorage) {
       return {
         name: clientFromStorage.name,
-        company: clientFromStorage.company,
-        avatar: clientFromStorage.avatar
+        company: clientFromStorage.company
       };
     }
     
-    // Fallback to deal's stored client data
     return {
       name: deal.contact || deal.client || "Contato não informado",
-      company: deal.companyName || deal.client || "Empresa não informada",
-      avatar: deal.avatar
+      company: deal.companyName || deal.client || "Empresa não informada"
     };
+  };
+
+  // Funções de edição inline
+  const handleEditTitle = (dealId: string, currentTitle: string) => {
+    setEditingTitle(dealId);
+    setTempTitle(currentTitle);
+  };
+
+  const handleSaveTitle = (dealId: string, stageId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, title: tempTitle };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingTitle(null);
+    setTempTitle("");
+  };
+
+  const handleEditDescription = (dealId: string, currentDescription: string = "") => {
+    setEditingDescription(dealId);
+    setTempDescription(currentDescription);
+  };
+
+  const handleSaveDescription = (dealId: string, stageId: string) => {
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, description: tempDescription };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingDescription(null);
+    setTempDescription("");
+  };
+
+  const handleEditValue = (dealId: string, currentValue: number = 0) => {
+    setEditingValue(dealId);
+    setTempValue(currentValue.toString());
+  };
+
+  const handleSaveValue = (dealId: string, stageId: string) => {
+    const numericValue = parseFloat(tempValue) || 0;
+    
+    setPipelines(prevPipelines => {
+      return prevPipelines.map(pipeline => {
+        if (pipeline.id !== selectedPipeline) return pipeline;
+
+        const newStages = pipeline.stages.map(stage => {
+          if (stage.id !== stageId) return stage;
+
+          const newDeals = stage.deals.map(deal => {
+            if (deal.id === dealId) {
+              return { ...deal, value: numericValue };
+            }
+            return deal;
+          });
+
+          return { ...stage, deals: newDeals };
+        });
+
+        return { ...pipeline, stages: newStages };
+      });
+    });
+
+    setEditingValue(null);
+    setTempValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTitle(null);
+    setEditingDescription(null);
+    setEditingValue(null);
+    setTempTitle("");
+    setTempDescription("");
+    setTempValue("");
   };
 
   const handleEditStage = (stageId: string, currentTitle: string) => {
@@ -521,7 +583,6 @@ const KanbanBoard = () => {
 
   const handleEditCard = (deal: Deal) => {
     setEditingCard(deal.id);
-    // When editing, ensure we show the correct client data
     const clientInfo = getClientDisplayInfo(deal);
     setTempCardData({ 
       ...deal,
@@ -540,13 +601,11 @@ const KanbanBoard = () => {
         const newStages = pipeline.stages.map(stage => {
           const newDeals = stage.deals.map(deal => {
             if (deal.id === dealId) {
-              // Get the selected client data
               const selectedClient = clients.find(c => c.id === tempCardData.clientId);
               
               return { 
                 ...deal, 
                 ...tempCardData,
-                // Ensure client data is properly updated and synchronized
                 client: selectedClient?.company || tempCardData.companyName || deal.client,
                 companyName: selectedClient?.company || tempCardData.companyName || deal.companyName,
                 contact: selectedClient?.name || tempCardData.contact || deal.contact
@@ -639,10 +698,10 @@ const KanbanBoard = () => {
           if (stage.id !== stageId) return stage;
 
           const newDeals = stage.deals.map(deal => {
-            if (deal.id === dealId && deal.notes) {
+            if (deal.id === dealId) {
               return { 
                 ...deal, 
-                notes: deal.notes.filter(note => note.id !== noteId)
+                notes: [...(deal.notes || []), note]
               };
             }
             return deal;
@@ -734,7 +793,6 @@ const KanbanBoard = () => {
     if (window.confirm("Tem certeza que deseja excluir este pipeline? Todos os estágios e deals serão removidos.")) {
       setPipelines(prev => prev.filter(pipeline => pipeline.id !== pipelineId));
       
-      // Se o pipeline excluído for o selecionado, selecione outro
       if (pipelineId === selectedPipeline) {
         const remainingPipelines = pipelines.filter(p => p.id !== pipelineId);
         if (remainingPipelines.length > 0) {
@@ -744,27 +802,18 @@ const KanbanBoard = () => {
     }
   };
 
-  // Função para adicionar novo deal
   const handleAddNewDeal = () => {
-    console.log('handleAddNewDeal chamado');
-    console.log('newDealData:', newDealData);
-    console.log('selectedPipeline:', selectedPipeline);
-    console.log('currentPipeline:', currentPipeline);
-    
     if (!newDealData.title.trim()) {
-      console.log('Erro: título vazio');
       alert('O título é obrigatório');
       return;
     }
     
     if (!newDealData.stageId) {
-      console.log('Erro: estágio não selecionado');
       alert('Selecione um estágio');
       return;
     }
 
     const selectedClient = clients.find(c => c.id === newDealData.clientId);
-    console.log('selectedClient:', selectedClient);
     
     const newDeal: Deal = {
       id: `deal-${Date.now()}`,
@@ -779,16 +828,12 @@ const KanbanBoard = () => {
       notes: []
     };
 
-    console.log('newDeal criado:', newDeal);
-
     setPipelines(prevPipelines => {
-      console.log('Atualizando pipelines...');
       const updatedPipelines = prevPipelines.map(pipeline => {
         if (pipeline.id !== selectedPipeline) return pipeline;
 
         const newStages = pipeline.stages.map(stage => {
           if (stage.id === newDealData.stageId) {
-            console.log(`Adicionando deal ao estágio ${stage.id}`);
             return { ...stage, deals: [...stage.deals, newDeal] };
           }
           return stage;
@@ -797,12 +842,9 @@ const KanbanBoard = () => {
         return { ...pipeline, stages: newStages };
       });
       
-      console.log('Pipelines atualizados:', updatedPipelines);
       return updatedPipelines;
     });
 
-    // Limpar formulário e fechar modal
-    console.log('Limpando formulário...');
     setNewDealData({
       title: "",
       description: "",
@@ -812,7 +854,6 @@ const KanbanBoard = () => {
       stageId: ""
     });
     setIsAddDealDialogOpen(false);
-    console.log('Modal fechado e formulário limpo');
   };
 
   const getPriorityColor = (priority: string) => {
@@ -833,12 +874,18 @@ const KanbanBoard = () => {
     }
   };
 
-  // Função para lidar com duplo clique no nome do estágio
   const handleStageDoubleClick = (stageId: string, currentTitle: string) => {
     if (!isClientView) {
       setEditingStage(stageId);
       setTempStageTitle(currentTitle);
     }
+  };
+
+  const getFormattedValue = (value: number | undefined) => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return "R$ 0,00";
+    }
+    return `R$ ${value.toLocaleString('pt-BR')}`;
   };
 
   const renderDealCard = (deal: Deal, index: number, stage: any) => {
@@ -861,7 +908,33 @@ const KanbanBoard = () => {
           >
             <div className="p-3">
               <div className="flex justify-between items-start">
-                <h4 className="font-medium text-slate-800">{deal.title}</h4>
+                {/* Título editável inline */}
+                {editingTitle === deal.id ? (
+                  <div className="flex-1 mr-2">
+                    <Input
+                      value={tempTitle}
+                      onChange={(e) => setTempTitle(e.target.value)}
+                      className="text-sm font-medium"
+                      onBlur={() => handleSaveTitle(deal.id, stage.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveTitle(deal.id, stage.id);
+                        } else if (e.key === 'Escape') {
+                          handleCancelEdit();
+                        }
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <h4 
+                    className="font-medium text-slate-800 cursor-pointer hover:bg-slate-50 p-1 rounded flex-1"
+                    onDoubleClick={() => !isClientView && handleEditTitle(deal.id, deal.title)}
+                  >
+                    {deal.title}
+                  </h4>
+                )}
+                
                 <div className="flex items-center">
                   <Badge className={getPriorityColor(deal.priority)}>
                     {getPriorityLabel(deal.priority)}
@@ -881,10 +954,33 @@ const KanbanBoard = () => {
                 </div>
               </div>
               
-              {deal.description && (
-                <p className="text-sm text-slate-600 mt-1 line-clamp-2">
-                  {deal.description}
-                </p>
+              {/* Descrição editável inline */}
+              {editingDescription === deal.id ? (
+                <div className="mt-1">
+                  <Textarea
+                    value={tempDescription}
+                    onChange={(e) => setTempDescription(e.target.value)}
+                    className="text-sm min-h-[60px]"
+                    onBlur={() => handleSaveDescription(deal.id, stage.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        handleSaveDescription(deal.id, stage.id);
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                deal.description && (
+                  <p 
+                    className="text-sm text-slate-600 mt-1 line-clamp-2 cursor-pointer hover:bg-slate-50 p-1 rounded"
+                    onDoubleClick={() => !isClientView && handleEditDescription(deal.id, deal.description)}
+                  >
+                    {deal.description}
+                  </p>
+                )
               )}
               
               {clientInfo.company && (
@@ -900,18 +996,42 @@ const KanbanBoard = () => {
                   <span>{clientInfo.name}</span>
                 </div>
               )}
+
+              {/* Valor editável inline */}
+              {editingValue === deal.id ? (
+                <div className="mt-2">
+                  <Input
+                    type="number"
+                    value={tempValue}
+                    onChange={(e) => setTempValue(e.target.value)}
+                    className="text-sm"
+                    onBlur={() => handleSaveValue(deal.id, stage.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveValue(deal.id, stage.id);
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                deal.value && (
+                  <div 
+                    className="flex items-center gap-1 mt-2 text-xs text-slate-500 cursor-pointer hover:bg-slate-50 p-1 rounded"
+                    onDoubleClick={() => !isClientView && handleEditValue(deal.id, deal.value)}
+                  >
+                    <span className="font-medium text-green-600">
+                      {getFormattedValue(deal.value)}
+                    </span>
+                  </div>
+                )
+              )}
               
               {/* Rest of the card content when expanded */}
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
-                  {deal.value && (
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <span className="font-medium text-green-600">
-                        R$ {deal.value.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                  
                   {/* Confidential Information */}
                   <div className="bg-slate-50 rounded p-2">
                     <div className="flex items-center justify-between mb-1">
@@ -1157,12 +1277,10 @@ const KanbanBoard = () => {
 
             {/* Add Deal Button */}
             <Dialog open={isAddDealDialogOpen} onOpenChange={(open) => {
-              console.log('Dialog state changed:', open);
               setIsAddDealDialogOpen(open);
             }}>
               <DialogTrigger asChild>
                 <Button onClick={() => {
-                  console.log('Botão Novo Deal clicado');
                   setIsAddDealDialogOpen(true);
                 }}>
                   <Plus className="h-4 w-4 mr-1" />
@@ -1182,7 +1300,6 @@ const KanbanBoard = () => {
                     <Input
                       value={newDealData.title}
                       onChange={(e) => {
-                        console.log('Título alterado:', e.target.value);
                         setNewDealData({ ...newDealData, title: e.target.value });
                       }}
                       placeholder="Nome do deal ou projeto"
@@ -1204,7 +1321,6 @@ const KanbanBoard = () => {
                     <Select
                       value={newDealData.clientId}
                       onValueChange={(value) => {
-                        console.log('Cliente selecionado:', value);
                         setNewDealData({ ...newDealData, clientId: value });
                       }}
                     >
@@ -1254,7 +1370,6 @@ const KanbanBoard = () => {
                     <Select
                       value={newDealData.stageId}
                       onValueChange={(value) => {
-                        console.log('Estágio selecionado:', value);
                         setNewDealData({ ...newDealData, stageId: value });
                       }}
                     >
@@ -1273,13 +1388,11 @@ const KanbanBoard = () => {
                   
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => {
-                      console.log('Cancelar clicado');
                       setIsAddDealDialogOpen(false);
                     }}>
                       Cancelar
                     </Button>
                     <Button onClick={() => {
-                      console.log('Adicionar Deal clicado');
                       handleAddNewDeal();
                     }}>
                       Adicionar Deal
