@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,8 @@ import {
   Trash2,
   Plus,
   Check,
-  X
+  X,
+  User
 } from "lucide-react";
 
 interface Client {
@@ -39,6 +39,15 @@ interface Client {
   address?: string;
   notes?: string;
   avatar?: string;
+  users?: CompanyUser[];
+}
+
+interface CompanyUser {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: "admin" | "user";
 }
 
 const ClientsList = () => {
@@ -50,6 +59,10 @@ const ClientsList = () => {
   const [newClientData, setNewClientData] = useState<Partial<Client>>({
     status: "prospect"
   });
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [newUserData, setNewUserData] = useState<Partial<CompanyUser>>({});
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   // Carregar dados do localStorage
   useEffect(() => {
@@ -86,7 +99,11 @@ const ClientsList = () => {
         projectsCount: 3,
         lastContact: "2024-06-08",
         address: "São Paulo, SP",
-        notes: "Cliente premium, sempre pontual nos pagamentos."
+        notes: "Cliente premium, sempre pontual nos pagamentos.",
+        users: [
+          { id: "u1", name: "João Silva", email: "joao@techcorp.com", password: "123456", role: "admin" },
+          { id: "u2", name: "Ana Costa", email: "ana@techcorp.com", password: "123456", role: "user" }
+        ]
       },
       {
         id: "2",
@@ -99,7 +116,10 @@ const ClientsList = () => {
         projectsCount: 2,
         lastContact: "2024-06-09",
         address: "Rio de Janeiro, RJ",
-        notes: "Startup em crescimento, muito engajada no projeto."
+        notes: "Startup em crescimento, muito engajada no projeto.",
+        users: [
+          { id: "u3", name: "Maria Santos", email: "maria@startupxyz.com", password: "123456", role: "admin" }
+        ]
       },
       {
         id: "3",
@@ -112,7 +132,8 @@ const ClientsList = () => {
         projectsCount: 0,
         lastContact: "2024-06-10",
         address: "Belo Horizonte, MG",
-        notes: "Interessado em consultoria digital."
+        notes: "Interessado em consultoria digital.",
+        users: []
       }
     ];
     setClients(defaultClients);
@@ -176,12 +197,87 @@ const ClientsList = () => {
       projectsCount: newClientData.projectsCount || 0,
       lastContact: new Date().toISOString().split('T')[0],
       address: newClientData.address || "",
-      notes: newClientData.notes || ""
+      notes: newClientData.notes || "",
+      users: []
     };
 
     setClients(prev => [...prev, newClient]);
     setNewClientData({ status: "prospect" });
     setIsCreateDialogOpen(false);
+  };
+
+  // User management functions
+  const handleAddUser = () => {
+    if (!selectedClientId || !newUserData.name || !newUserData.email || !newUserData.password) {
+      alert("Por favor, preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    const newUser: CompanyUser = {
+      id: Date.now().toString(),
+      name: newUserData.name,
+      email: newUserData.email,
+      password: newUserData.password,
+      role: newUserData.role || "user"
+    };
+
+    setClients(prev => prev.map(client => 
+      client.id === selectedClientId 
+        ? { ...client, users: [...(client.users || []), newUser] }
+        : client
+    ));
+
+    setNewUserData({});
+    setIsUserDialogOpen(false);
+    setEditingUserId(null);
+  };
+
+  const handleEditUser = (user: CompanyUser, clientId: string) => {
+    setSelectedClientId(clientId);
+    setEditingUserId(user.id);
+    setNewUserData(user);
+    setIsUserDialogOpen(true);
+  };
+
+  const handleUpdateUser = () => {
+    if (!selectedClientId || !editingUserId || !newUserData.name || !newUserData.email || !newUserData.password) {
+      return;
+    }
+
+    setClients(prev => prev.map(client => 
+      client.id === selectedClientId 
+        ? { 
+            ...client, 
+            users: client.users?.map(user => 
+              user.id === editingUserId 
+                ? { ...user, ...newUserData } as CompanyUser
+                : user
+            ) || []
+          }
+        : client
+    ));
+
+    setNewUserData({});
+    setIsUserDialogOpen(false);
+    setEditingUserId(null);
+    setSelectedClientId(null);
+  };
+
+  const handleDeleteUser = (userId: string, clientId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
+      setClients(prev => prev.map(client => 
+        client.id === clientId 
+          ? { ...client, users: client.users?.filter(user => user.id !== userId) || [] }
+          : client
+      ));
+    }
+  };
+
+  const openUserDialog = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setNewUserData({});
+    setEditingUserId(null);
+    setIsUserDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -202,12 +298,16 @@ const ClientsList = () => {
     }
   };
 
+  const getRoleColor = (role: string) => {
+    return role === 'admin' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">Clientes</h2>
-          <p className="text-slate-600">Gerencie sua base de clientes</p>
+          <p className="text-slate-600">Gerencie sua base de clientes e usuários</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -266,7 +366,7 @@ const ClientsList = () => {
                 <label className="text-sm font-medium mb-2 block">Status</label>
                 <Select
                   value={newClientData.status || "prospect"}
-                  onValueChange={(value) => setNewClientData(prev => ({ ...prev, status: value }))}
+                  onValueChange={(value: "active" | "inactive" | "prospect") => setNewClientData(prev => ({ ...prev, status: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -313,28 +413,91 @@ const ClientsList = () => {
         </Dialog>
       </div>
 
+      {/* User Management Dialog */}
+      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingUserId ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
+            <DialogDescription>
+              {editingUserId ? 'Atualize as informações do usuário' : 'Adicione um novo usuário para a empresa'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Nome *</label>
+              <Input
+                value={newUserData.name || ""}
+                onChange={(e) => setNewUserData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome completo"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Email *</label>
+              <Input
+                type="email"
+                value={newUserData.email || ""}
+                onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@empresa.com"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Senha *</label>
+              <Input
+                type="password"
+                value={newUserData.password || ""}
+                onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Senha de acesso"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Perfil</label>
+              <Select
+                value={newUserData.role || "user"}
+                onValueChange={(value: "admin" | "user") => setNewUserData(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuário</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={editingUserId ? handleUpdateUser : handleAddUser} className="flex-1">
+                {editingUserId ? 'Atualizar' : 'Adicionar'}
+              </Button>
+              <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {clients.map((client) => {
           const isExpanded = expandedCards.has(client.id);
           const isEditing = editingClient === client.id;
 
           return (
-            <Card key={client.id} className="hover:shadow-lg transition-all duration-200">
+            <Card key={client.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
               <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(client.id)}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3 flex-1">
-                      <Avatar>
+                      <Avatar className="h-12 w-12">
                         <AvatarImage src={client.avatar} />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-blue-100 text-blue-600 font-semibold">
                           {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
                           <div>
-                            <CardTitle className="text-lg">{client.name}</CardTitle>
-                            <CardDescription className="flex items-center gap-1">
+                            <CardTitle className="text-lg text-slate-800">{client.name}</CardTitle>
+                            <CardDescription className="flex items-center gap-1 text-slate-600">
                               <Building2 className="w-3 h-3" />
                               {client.company}
                             </CardDescription>
@@ -351,27 +514,33 @@ const ClientsList = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center justify-between mt-3">
                     <Badge className={getStatusColor(client.status)}>
                       {getStatusLabel(client.status)}
                     </Badge>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditClient(client)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClient(client.id)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {client.users?.length || 0} usuários
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditClient(client)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteClient(client.id)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -402,7 +571,7 @@ const ClientsList = () => {
                         />
                         <Select
                           value={tempClientData.status || "prospect"}
-                          onValueChange={(value) => setTempClientData(prev => ({ ...prev, status: value }))}
+                          onValueChange={(value: "active" | "inactive" | "prospect") => setTempClientData(prev => ({ ...prev, status: value }))}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -436,53 +605,119 @@ const ClientsList = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Mail className="w-4 h-4" />
-                          <span>{client.email}</span>
-                        </div>
-                        
-                        {client.phone && (
+                      <div className="space-y-4">
+                        {/* Client Info */}
+                        <div className="space-y-3">
                           <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <Phone className="w-4 h-4" />
-                            <span>{client.phone}</span>
+                            <Mail className="w-4 h-4" />
+                            <span>{client.email}</span>
                           </div>
-                        )}
-                        
-                        {client.address && (
+                          
+                          {client.phone && (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Phone className="w-4 h-4" />
+                              <span>{client.phone}</span>
+                            </div>
+                          )}
+                          
+                          {client.address && (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <MapPin className="w-4 h-4" />
+                              <span>{client.address}</span>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <MapPin className="w-4 h-4" />
-                            <span>{client.address}</span>
+                            <Calendar className="w-4 h-4" />
+                            <span>Último contato: {new Date(client.lastContact).toLocaleDateString('pt-BR')}</span>
                           </div>
-                        )}
-                        
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Calendar className="w-4 h-4" />
-                          <span>Último contato: {new Date(client.lastContact).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-green-600 font-semibold">
-                              <DollarSign className="w-4 h-4" />
-                              <span>R$ {client.totalValue.toLocaleString()}</span>
+                          
+                          <div className="grid grid-cols-2 gap-4 pt-2">
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 text-green-600 font-semibold">
+                                <DollarSign className="w-4 h-4" />
+                                <span>R$ {client.totalValue.toLocaleString()}</span>
+                              </div>
+                              <p className="text-xs text-slate-500">Valor Total</p>
                             </div>
-                            <p className="text-xs text-slate-500">Valor Total</p>
-                          </div>
-                          <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-blue-600 font-semibold">
-                              <Users className="w-4 h-4" />
-                              <span>{client.projectsCount}</span>
+                            <div className="text-center">
+                              <div className="flex items-center justify-center gap-1 text-blue-600 font-semibold">
+                                <Users className="w-4 h-4" />
+                                <span>{client.projectsCount}</span>
+                              </div>
+                              <p className="text-xs text-slate-500">Projetos</p>
                             </div>
-                            <p className="text-xs text-slate-500">Projetos</p>
+                          </div>
+                          
+                          {client.notes && (
+                            <div className="mt-3 p-3 bg-slate-50 rounded-lg">
+                              <p className="text-sm text-slate-700">{client.notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Users Section */}
+                        <div className="border-t pt-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-slate-800 flex items-center gap-2">
+                              <User className="w-4 h-4" />
+                              Usuários da Empresa
+                            </h4>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openUserDialog(client.id)}
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Usuário
+                            </Button>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {client.users && client.users.length > 0 ? (
+                              client.users.map((user) => (
+                                <div key={user.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback className="text-xs bg-blue-100 text-blue-600">
+                                        {user.name.split(' ').map(n => n[0]).join('')}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <p className="text-sm font-medium">{user.name}</p>
+                                      <p className="text-xs text-slate-500">{user.email}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge className={getRoleColor(user.role)} variant="secondary">
+                                      {user.role === 'admin' ? 'Admin' : 'User'}
+                                    </Badge>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleEditUser(user, client.id)}
+                                        className="h-6 w-6 p-0"
+                                      >
+                                        <Edit className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeleteUser(user.id, client.id)}
+                                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-sm text-slate-500 text-center py-2">Nenhum usuário cadastrado</p>
+                            )}
                           </div>
                         </div>
-                        
-                        {client.notes && (
-                          <div className="mt-3 p-3 bg-slate-50 rounded-lg">
-                            <p className="text-sm text-slate-700">{client.notes}</p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </CardContent>
