@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -402,13 +403,15 @@ const KanbanBoard = () => {
     if (clientFromStorage) {
       return {
         name: clientFromStorage.name,
-        company: clientFromStorage.company
+        company: clientFromStorage.company,
+        avatar: clientFromStorage.avatar || ""
       };
     }
     
     return {
       name: deal.contact || deal.client || "Contato não informado",
-      company: deal.companyName || deal.client || "Empresa não informada"
+      company: deal.companyName || deal.client || "Empresa não informada",
+      avatar: ""
     };
   };
 
@@ -1032,10 +1035,19 @@ const KanbanBoard = () => {
                 )
               )}
               
+              {/* Client information with avatar */}
               {clientInfo.company && (
-                <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                  {getCompanyIcon(clientInfo.company)}
-                  <span>{clientInfo.company}</span>
+                <div className="flex items-center gap-2 mt-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={clientInfo.avatar} alt={clientInfo.name} />
+                    <AvatarFallback className="text-xs">
+                      {clientInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    {getCompanyIcon(clientInfo.company)}
+                    <span>{clientInfo.company}</span>
+                  </div>
                 </div>
               )}
 
