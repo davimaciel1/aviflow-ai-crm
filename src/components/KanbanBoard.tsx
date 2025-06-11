@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -512,7 +513,17 @@ const KanbanBoard = () => {
         const newStages = pipeline.stages.map(stage => {
           const newDeals = stage.deals.map(deal => {
             if (deal.id === dealId) {
-              return { ...deal, ...tempCardData };
+              // Get the selected client data
+              const selectedClient = clients.find(c => c.id === tempCardData.clientId);
+              
+              return { 
+                ...deal, 
+                ...tempCardData,
+                // Ensure client data is properly updated
+                client: selectedClient?.company || tempCardData.client || deal.client,
+                companyName: selectedClient?.company || tempCardData.companyName || deal.companyName,
+                contact: selectedClient?.name || tempCardData.contact || deal.contact
+              };
             }
             return deal;
           });
@@ -1388,12 +1399,13 @@ const KanbanBoard = () => {
                     value={tempCardData.clientId || ""}
                     onValueChange={(value) => {
                       const selectedClient = clients.find(c => c.id === value);
+                      console.log('Cliente selecionado:', selectedClient);
                       setTempCardData({
                         ...tempCardData,
                         clientId: value,
-                        client: selectedClient?.company,
-                        companyName: selectedClient?.company,
-                        contact: selectedClient?.name
+                        client: selectedClient?.company || "",
+                        companyName: selectedClient?.company || "",
+                        contact: selectedClient?.name || ""
                       });
                     }}
                   >
