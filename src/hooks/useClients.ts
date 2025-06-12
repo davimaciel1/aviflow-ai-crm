@@ -20,48 +20,49 @@ export const useClients = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadClients = async () => {
-      console.log('Loading clients from Supabase...');
-      setIsLoading(true);
-      try {
-        // First, let's check the current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        console.log('Current user:', user);
-        console.log('User error:', userError);
-
-        // Then try to fetch clients
-        const { data, error, count } = await supabase
-          .from('clients')
-          .select('*', { count: 'exact' });
-        
-        console.log('Supabase clients response:', { data, error, count });
-        console.log('Number of clients found:', data?.length || 0);
-        
-        if (error) {
-          console.error('Error loading clients:', error);
-          console.error('Error details:', error.message, error.code);
-          setClients([]);
-        } else {
-          // Type assertion to ensure status field matches our enum
-          const typedData = (data || []).map(client => ({
-            ...client,
-            status: client.status as 'prospect' | 'qualified' | 'client' | 'inactive'
-          }));
-          console.log('Processed clients:', typedData);
-          setClients(typedData);
-        }
-      } catch (error) {
-        console.error('Error loading clients:', error);
-        setClients([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadClients();
   }, []);
 
+  const loadClients = async () => {
+    console.log('Loading clients from Supabase...');
+    setIsLoading(true);
+    try {
+      // First, let's check the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('Current user:', user);
+      console.log('User error:', userError);
+
+      // Then try to fetch clients
+      const { data, error, count } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact' });
+      
+      console.log('Supabase clients response:', { data, error, count });
+      console.log('Number of clients found:', data?.length || 0);
+      
+      if (error) {
+        console.error('Error loading clients:', error);
+        console.error('Error details:', error.message, error.code);
+        setClients([]);
+      } else {
+        // Type assertion to ensure status field matches our enum
+        const typedData = (data || []).map(client => ({
+          ...client,
+          status: client.status as 'prospect' | 'qualified' | 'client' | 'inactive'
+        }));
+        console.log('Processed clients:', typedData);
+        setClients(typedData);
+      }
+    } catch (error) {
+      console.error('Error loading clients:', error);
+      setClients([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const addClient = async (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
+    console.log('Adding client to Supabase:', client);
     try {
       const { data, error } = await supabase
         .from('clients')
@@ -74,6 +75,7 @@ export const useClients = () => {
         return null;
       }
 
+      console.log('Client added successfully:', data);
       const typedData = {
         ...data,
         status: data.status as 'prospect' | 'qualified' | 'client' | 'inactive'
@@ -87,6 +89,7 @@ export const useClients = () => {
   };
 
   const updateClient = async (id: string, updates: Partial<Client>) => {
+    console.log('Updating client in Supabase:', { id, updates });
     try {
       const { error } = await supabase
         .from('clients')
@@ -98,6 +101,7 @@ export const useClients = () => {
         return;
       }
 
+      console.log('Client updated successfully');
       setClients(prev => prev.map(client => 
         client.id === id ? { ...client, ...updates } : client
       ));
@@ -107,6 +111,7 @@ export const useClients = () => {
   };
 
   const deleteClient = async (id: string) => {
+    console.log('Deleting client from Supabase:', id);
     try {
       const { error } = await supabase
         .from('clients')
@@ -118,6 +123,7 @@ export const useClients = () => {
         return;
       }
 
+      console.log('Client deleted successfully');
       setClients(prev => prev.filter(client => client.id !== id));
     } catch (error) {
       console.error('Error deleting client:', error);
@@ -129,6 +135,7 @@ export const useClients = () => {
     isLoading,
     addClient,
     updateClient,
-    deleteClient
+    deleteClient,
+    loadClients // Expose loadClients for manual refresh
   };
 };
