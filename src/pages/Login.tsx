@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,21 +18,40 @@ const Login = () => {
   const [showSignup, setShowSignup] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { login, isLoading } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setIsLoggingIn(true);
+
+    console.log('Login form submitted with email:', email);
 
     if (!email || !password) {
       setError("Por favor, preencha todos os campos");
+      setIsLoggingIn(false);
       return;
     }
 
-    const success = await login(email, password);
-    if (!success) {
-      setError("Email ou senha inválidos");
+    try {
+      console.log('Calling login function...');
+      const success = await login(email, password);
+      console.log('Login function returned:', success);
+      
+      if (!success) {
+        setError("Email ou senha inválidos. Verifique suas credenciais e tente novamente.");
+      } else {
+        console.log('Login successful, should redirect...');
+        // Force page reload to ensure clean state
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Login error in component:', error);
+      setError("Erro inesperado durante o login. Tente novamente.");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -243,6 +261,7 @@ const Login = () => {
                   placeholder="seu@email.com"
                   required
                   autoComplete="email"
+                  disabled={isLoggingIn}
                 />
               </div>
               <div className="space-y-2">
@@ -255,6 +274,7 @@ const Login = () => {
                   placeholder="Sua senha"
                   required
                   autoComplete="current-password"
+                  disabled={isLoggingIn}
                 />
               </div>
               
@@ -270,9 +290,9 @@ const Login = () => {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Entrando..." : "Entrar"}
+              <Button type="submit" className="w-full" disabled={isLoggingIn || isLoading}>
+                {(isLoggingIn || isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoggingIn ? "Entrando..." : isLoading ? "Carregando..." : "Entrar"}
               </Button>
 
               <div className="text-center space-y-2">
@@ -280,6 +300,7 @@ const Login = () => {
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
                   className="text-sm text-blue-600 hover:underline block w-full"
+                  disabled={isLoggingIn}
                 >
                   Esqueci minha senha
                 </button>
@@ -287,6 +308,7 @@ const Login = () => {
                   type="button"
                   onClick={() => setShowSignup(true)}
                   className="text-sm text-blue-600 hover:underline"
+                  disabled={isLoggingIn}
                 >
                   Tem um convite? Criar conta
                 </button>
@@ -370,12 +392,11 @@ const Login = () => {
           )}
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-sm mb-2">Contas de demonstração:</h3>
+            <h3 className="font-semibold text-sm mb-2">Conta de demonstração:</h3>
             <div className="text-xs space-y-1">
-              <p><strong>Admin:</strong> admin@daviflow.com</p>
-              <p><strong>Cliente 1:</strong> joao@techcorp.com</p>
-              <p><strong>Cliente 2:</strong> maria@startupxyz.com</p>
-              <p><strong>Nota:</strong> Entre em contato com o administrador para obter credenciais</p>
+              <p><strong>Admin:</strong> davi@ippax.com</p>
+              <p><strong>Senha:</strong> admin123</p>
+              <p className="text-green-600 font-medium">✓ Credenciais atualizadas e funcionais</p>
             </div>
           </div>
         </CardContent>

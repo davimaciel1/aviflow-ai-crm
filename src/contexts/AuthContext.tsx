@@ -29,6 +29,27 @@ export const useAuth = () => {
   return context;
 };
 
+// Cleanup function for auth state
+const cleanupAuthState = () => {
+  console.log('Cleaning up auth state...');
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      console.log('Removing localStorage key:', key);
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      console.log('Removing sessionStorage key:', key);
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -53,37 +74,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           console.log('Fetching profile for user:', session.user.id);
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .maybeSingle();
+          console.log('User email from session:', session.user.email);
+          
+          // Defer profile fetching to prevent deadlocks
+          setTimeout(async () => {
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .maybeSingle();
 
-            if (!mounted) return;
+              if (!mounted) return;
 
-            if (error) {
-              console.error('Error fetching profile:', error);
-              setUser(null);
-            } else if (profile) {
-              console.log('Profile loaded:', profile);
-              setUser({
-                id: profile.id,
-                name: profile.name,
-                email: profile.email,
-                role: profile.role as 'admin' | 'client',
-                status: profile.status as 'pending' | 'approved' | 'rejected'
-              });
-            } else {
-              console.log('No profile found for user');
-              setUser(null);
+              if (error) {
+                console.error('Error fetching profile:', error);
+                setUser(null);
+              } else if (profile) {
+                console.log('Profile loaded:', profile);
+                setUser({
+                  id: profile.id,
+                  name: profile.name,
+                  email: profile.email,
+                  role: profile.role as 'admin' | 'client',
+                  status: profile.status as 'pending' | 'approved' | 'rejected'
+                });
+              } else {
+                console.log('No profile found for user, checking if user exists in auth.users');
+                
+                // Check if user exists but profile is missing
+                console.log('User exists in auth but no profile found. Email:', session.user.email);
+                setUser(null);
+              }
+            } catch (error) {
+              console.error('Error in profile fetch:', error);
+              if (mounted) {
+                setUser(null);
+              }
             }
-          } catch (error) {
-            console.error('Error in auth state change:', error);
-            if (mounted) {
-              setUser(null);
-            }
-          }
+          }, 0);
         } else {
           console.log('No session, clearing user');
           if (mounted) {
@@ -148,32 +177,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Login attempt for email:', email);
+      
       // Input validation
       if (!email || !password) {
+        console.log('Login failed: Missing email or password');
         return false;
       }
 
       // Email format validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
+        console.log('Login failed: Invalid email format');
         return false;
       }
+
+      // Clean up existing state before login
+      cleanupAuthState();
       
+      // Attempt global sign out first
+      try {
+        console.log('Attempting global sign out before login...');
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Global sign out error (continuing):', err);
+      }
+      
+      console.log('Attempting to sign in with Supabase...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password,
       });
       
       if (error) {
-        console.error('Login error:', error);
+        console.error('Supabase login error:', error);
         return false;
       }
 
-      if (data.user) {
+      console.log('Supabase login successful:', data);
+      console.log('User data:', data.user);
+      console.log('Session data:', data.session);
+
+      if (data.user && data.session) {
         // Session and user will be set by the auth state change listener
+        console.log('Login successful, user authenticated');
         return true;
       }
       
+      console.log('Login failed: No user or session returned');
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -183,13 +234,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
+      console.log('Logout initiated...');
+      
+      // Clean up auth state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+        console.log('Global sign out successful');
+      } catch (err) {
+        console.error('Global sign out error:', err);
       }
-      // Session and user will be cleared by the auth state change listener
+      
+      // Force page reload for a clean state
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
+      // Force page reload even if logout fails
+      window.location.href = '/';
     }
   };
 
