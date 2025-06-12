@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Check, X } from "lucide-react";
 import { useClients, type Client } from "@/hooks/useClients";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ClientSelectorProps {
   value?: string;
@@ -20,6 +20,7 @@ interface ClientSelectorProps {
 const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar cliente..." }: ClientSelectorProps) => {
   const { clients, addClient, isLoading } = useClients();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newClientData, setNewClientData] = useState<Partial<Client>>({
     status: "prospect"
@@ -46,19 +47,16 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
       return;
     }
 
-    try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user?.id) {
-        toast({
-          title: "Erro de Autenticação",
-          description: "Você precisa estar logado para criar clientes. Por favor, faça login primeiro.",
-          variant: "destructive"
-        });
-        return;
-      }
+    if (!user?.id) {
+      toast({
+        title: "Erro de Autenticação",
+        description: "Você precisa estar logado para criar clientes. Por favor, faça login primeiro.",
+        variant: "destructive"
+      });
+      return;
+    }
 
+    try {
       const clientToAdd = {
         name: newClientData.name || "",
         company: newClientData.company || "",
