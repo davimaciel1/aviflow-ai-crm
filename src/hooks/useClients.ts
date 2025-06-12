@@ -21,11 +21,14 @@ export const useClients = () => {
 
   useEffect(() => {
     const loadClients = async () => {
+      console.log('Loading clients from Supabase...');
       setIsLoading(true);
       try {
         const { data, error } = await supabase
           .from('clients')
           .select('*');
+        
+        console.log('Supabase response:', { data, error });
         
         if (error) {
           console.error('Error loading clients:', error);
@@ -36,6 +39,7 @@ export const useClients = () => {
             ...client,
             status: client.status as 'prospect' | 'qualified' | 'client' | 'inactive'
           }));
+          console.log('Processed clients:', typedData);
           setClients(typedData);
         }
       } catch (error) {

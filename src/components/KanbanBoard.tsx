@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,7 +39,10 @@ const KanbanBoard = () => {
   const { user } = useAuth();
   const { clients, isLoading: clientsLoading } = useClients();
   const isClientView = user?.role === 'client';
+  
   console.log('KanbanBoard - User:', user);
+  console.log('KanbanBoard - Clients from hook:', clients);
+  console.log('KanbanBoard - Clients loading:', clientsLoading);
 
   // Mock deals usando clientId em vez do objeto client completo
   const mockDeals: Deal[] = [
@@ -49,7 +51,7 @@ const KanbanBoard = () => {
       title: 'Sistema de CRM Personalizado',
       description: 'Desenvolvimento de sistema CRM completo para gestão de vendas',
       value: 150000,
-      clientId: '1',
+      clientId: clients.length > 0 ? clients[0].id : '1',
       stage: '1',
       priority: 'high',
       contact: 'João Silva - CEO',
@@ -63,7 +65,7 @@ const KanbanBoard = () => {
       title: 'Website Institucional',
       description: 'Criação de website moderno e responsivo',
       value: 25000,
-      clientId: '2',
+      clientId: clients.length > 1 ? clients[1].id : '2',
       stage: '2',
       priority: 'medium',
       contact: 'Maria Santos - Marketing',
