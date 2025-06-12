@@ -161,11 +161,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Criar perfil usando apenas os campos obrigatórios
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .insert([{
+        .insert({
           name: userData.name,
           email: userData.email.toLowerCase(),
           role: userData.role
-        }])
+        })
         .select()
         .single();
 
