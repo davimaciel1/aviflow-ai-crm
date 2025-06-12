@@ -27,6 +27,12 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
   });
 
   const handleCreateClient = async () => {
+    // Debug logs para entender o problema
+    console.log('Debug - handleCreateClient chamado');
+    console.log('Debug - user object:', user);
+    console.log('Debug - user.id:', user?.id);
+    console.log('Debug - newClientData:', newClientData);
+
     if (!newClientData.name || !newClientData.company || !newClientData.email) {
       toast({
         title: "Erro",
@@ -48,6 +54,8 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
     }
 
     if (!user?.id) {
+      console.log('Debug - Erro: user.id não encontrado');
+      console.log('Debug - user completo:', JSON.stringify(user, null, 2));
       toast({
         title: "Erro de Autenticação",
         description: "Você precisa estar logado para criar clientes. Por favor, faça login primeiro.",
