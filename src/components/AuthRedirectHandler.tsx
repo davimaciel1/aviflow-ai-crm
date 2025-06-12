@@ -1,9 +1,10 @@
 
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const AuthRedirectHandler = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleAuthRedirect = () => {
@@ -12,24 +13,29 @@ const AuthRedirectHandler = () => {
       
       console.log('AuthRedirectHandler - Current URL:', currentUrl);
       console.log('AuthRedirectHandler - Hash:', hash);
+      console.log('AuthRedirectHandler - Pathname:', location.pathname);
 
-      // Check if this is a Supabase auth callback
+      // Only process if we have auth tokens in the hash and we're not already on reset-password
       if (hash.includes('access_token=') || hash.includes('type=recovery')) {
-        console.log('Detected Supabase auth callback, redirecting to reset-password');
-        
-        // Store the hash in sessionStorage temporarily
-        sessionStorage.setItem('supabase_auth_hash', hash);
-        
-        // Navigate to reset password page
-        navigate('/reset-password', { replace: true });
-        
-        // Clean the URL
-        window.history.replaceState(null, '', '/reset-password');
+        if (location.pathname !== '/reset-password') {
+          console.log('Detected Supabase auth callback, redirecting to reset-password');
+          
+          // Store the hash in sessionStorage temporarily
+          sessionStorage.setItem('supabase_auth_hash', hash);
+          
+          // Navigate to reset password page
+          navigate('/reset-password', { replace: true });
+          
+          // Clean the URL
+          window.history.replaceState(null, '', '/reset-password');
+        }
       }
     };
 
-    // Run on component mount
-    handleAuthRedirect();
+    // Only run if we have hash with auth tokens
+    if (window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('type=recovery'))) {
+      handleAuthRedirect();
+    }
     
     // Also listen for hash changes
     window.addEventListener('hashchange', handleAuthRedirect);
@@ -37,7 +43,7 @@ const AuthRedirectHandler = () => {
     return () => {
       window.removeEventListener('hashchange', handleAuthRedirect);
     };
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   return null;
 };
