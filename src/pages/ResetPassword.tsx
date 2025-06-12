@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,31 +18,31 @@ const ResetPassword = () => {
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
       try {
-        console.log('Checking URL for auth tokens...');
+        console.log('=== RESET PASSWORD PAGE LOADED ===');
         console.log('Current URL:', window.location.href);
         console.log('Hash:', window.location.hash);
-        console.log('Location pathname:', location.pathname);
+        console.log('Pathname:', window.location.pathname);
         
-        // Check if there's a hash with auth tokens in the URL
+        // Parse hash parameters
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
 
-        console.log('Hash params:', { 
-          accessToken: accessToken ? 'present' : 'missing', 
-          refreshToken: refreshToken ? 'present' : 'missing', 
-          type 
+        console.log('Hash params parsed:', { 
+          accessToken: accessToken ? 'EXISTS' : 'MISSING', 
+          refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
+          type: type || 'MISSING'
         });
 
         if (accessToken && type === 'recovery') {
-          console.log('Setting session with tokens from URL...');
+          console.log('Valid recovery tokens found, setting session...');
           
+          // Set the session with the tokens from URL
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || ''
@@ -50,39 +50,49 @@ const ResetPassword = () => {
 
           if (error) {
             console.error('Error setting session:', error);
-            setError("Link de recuperação inválido ou expirado");
+            setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
           } else if (data.session) {
-            console.log('Session set successfully');
+            console.log('Session set successfully:', data.session.user?.email);
             setIsValidSession(true);
-            // Clean up the URL without reloading
-            const newUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, newUrl);
+            
+            // Clean the URL hash to remove tokens
+            if (window.history.replaceState) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
           } else {
-            console.error('No session returned');
+            console.error('No session returned from setSession');
             setError("Erro ao configurar sessão de recuperação");
           }
         } else {
-          // Check for existing session
-          console.log('No recovery tokens found, checking existing session...');
-          const { data: { session } } = await supabase.auth.getSession();
-          console.log('Existing session:', !!session);
+          console.log('No recovery tokens found in URL, checking existing session...');
           
-          if (session) {
+          // Check if there's already a valid session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error('Error getting session:', sessionError);
+            setError("Erro ao verificar sessão");
+          } else if (session?.user) {
+            console.log('Found existing valid session');
             setIsValidSession(true);
           } else {
-            setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link.");
+            console.log('No valid session found');
+            setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link de recuperação.");
           }
         }
       } catch (error) {
-        console.error('Error handling auth redirect:', error);
-        setError("Erro ao verificar link de recuperação");
+        console.error('Error in handleAuthRedirect:', error);
+        setError("Erro inesperado ao processar link de recuperação");
       } finally {
         setIsCheckingSession(false);
       }
     };
 
-    handleAuthRedirect();
-  }, [location]);
+    // Add a small delay to ensure the component is fully mounted
+    const timer = setTimeout(handleAuthRedirect, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,22 +125,23 @@ const ResetPassword = () => {
       });
 
       if (error) {
-        console.error('Erro ao atualizar senha:', error);
-        setError(error.message);
+        console.error('Error updating password:', error);
+        setError("Erro ao atualizar senha: " + error.message);
         setIsLoading(false);
         return;
       }
 
       console.log('Password updated successfully');
-      setSuccess("Senha atualizada com sucesso!");
+      setSuccess("Senha atualizada com sucesso! Redirecionando para o login...");
       
-      // Redirecionar para login após 2 segundos
-      setTimeout(() => {
+      // Clear the session and redirect to login
+      setTimeout(async () => {
+        await supabase.auth.signOut();
         navigate('/login');
       }, 2000);
 
     } catch (error) {
-      console.error('Erro inesperado:', error);
+      console.error('Unexpected error:', error);
       setError("Erro inesperado. Tente novamente.");
     } finally {
       setIsLoading(false);
@@ -142,7 +153,7 @@ const ResetPassword = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
         <div className="flex items-center space-x-2">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="text-lg font-medium">Verificando link...</span>
+          <span className="text-lg font-medium">Verificando link de recuperação...</span>
         </div>
       </div>
     );
@@ -160,7 +171,10 @@ const ResetPassword = () => {
           </div>
           <CardTitle>Redefinir Senha</CardTitle>
           <CardDescription>
-            Digite sua nova senha para concluir a recuperação
+            {isValidSession 
+              ? "Digite sua nova senha para concluir a recuperação"
+              : "Verificando link de recuperação..."
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -223,16 +237,26 @@ const ResetPassword = () => {
               </div>
             </form>
           ) : (
-            <div className="text-center">
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-              <Button 
-                onClick={() => navigate('/login')} 
-                className="w-full mt-4"
-              >
-                Voltar ao Login
-              </Button>
+            <div className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="text-center space-y-4">
+                <p className="text-sm text-gray-600">
+                  Se você chegou aqui sem usar um link de recuperação válido, 
+                  solicite um novo link através da página de login.
+                </p>
+                
+                <Button 
+                  onClick={() => navigate('/login')} 
+                  className="w-full"
+                >
+                  Ir para Login
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
