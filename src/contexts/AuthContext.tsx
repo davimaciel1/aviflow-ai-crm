@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -55,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     if (!email || !password) {
+      console.log('Login - Email ou senha vazios');
       setIsLoading(false);
       return false;
     }
@@ -63,6 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simular delay de API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      console.log('Login - Buscando usuário no banco:', email.toLowerCase());
+      
       // Buscar usuário no Supabase profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -70,8 +72,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('email', email.toLowerCase())
         .single();
 
+      console.log('Login - Resultado da busca:', { profile, profileError });
+
       if (profileError || !profile) {
-        console.log('Login - Usuário não encontrado');
+        console.log('Login - Usuário não encontrado no banco de dados');
         setIsLoading(false);
         return false;
       }
@@ -82,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       if (validPasswords[email.toLowerCase()] !== password) {
-        console.log('Login - Senha inválida');
+        console.log('Login - Senha inválida para:', email);
         setIsLoading(false);
         return false;
       }
@@ -129,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false; // Email já existe
       }
 
-      // Criar perfil - removendo o id para deixar o banco gerar automaticamente
+      // Criar perfil - o banco vai gerar o ID automaticamente
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
