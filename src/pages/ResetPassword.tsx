@@ -27,47 +27,60 @@ const ResetPassword = () => {
         console.log('Hash:', window.location.hash);
         console.log('Pathname:', window.location.pathname);
         
-        // Extract tokens from URL hash (Supabase format)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+        // First check if there's a stored hash from our redirect handler
+        const storedHash = sessionStorage.getItem('supabase_auth_hash');
+        console.log('Stored hash from sessionStorage:', storedHash);
+        
+        let hashToProcess = window.location.hash || storedHash || '';
+        
+        // Clean up sessionStorage after getting the hash
+        if (storedHash) {
+          sessionStorage.removeItem('supabase_auth_hash');
+        }
+        
+        if (hashToProcess) {
+          // Extract tokens from hash
+          const hashParams = new URLSearchParams(hashToProcess.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const type = hashParams.get('type');
 
-        console.log('Extracted params:', { 
-          accessToken: accessToken ? 'EXISTS' : 'MISSING', 
-          refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
-          type: type || 'MISSING'
-        });
+          console.log('Extracted params:', { 
+            accessToken: accessToken ? 'EXISTS' : 'MISSING', 
+            refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
+            type: type || 'MISSING'
+          });
 
-        if (accessToken && type === 'recovery') {
-          console.log('Valid recovery tokens found, setting session...');
-          
-          try {
-            // Set the session with the tokens from URL
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || ''
-            });
+          if (accessToken && type === 'recovery') {
+            console.log('Valid recovery tokens found, setting session...');
+            
+            try {
+              // Set the session with the tokens from URL
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken || ''
+              });
 
-            if (error) {
-              console.error('Error setting session:', error);
-              setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
-            } else if (data.session) {
-              console.log('Session set successfully:', data.session.user?.email);
-              setIsValidSession(true);
-              
-              // Clean the URL to remove tokens for security
-              window.history.replaceState(null, '', '/reset-password');
-            } else {
-              console.error('No session returned from setSession');
-              setError("Erro ao configurar sessão de recuperação");
+              if (error) {
+                console.error('Error setting session:', error);
+                setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
+              } else if (data.session) {
+                console.log('Session set successfully:', data.session.user?.email);
+                setIsValidSession(true);
+              } else {
+                console.error('No session returned from setSession');
+                setError("Erro ao configurar sessão de recuperação");
+              }
+            } catch (sessionError) {
+              console.error('Session error:', sessionError);
+              setError("Erro ao processar tokens de recuperação");
             }
-          } catch (sessionError) {
-            console.error('Session error:', sessionError);
-            setError("Erro ao processar tokens de recuperação");
+          } else {
+            console.log('Invalid or missing recovery tokens');
+            setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link de recuperação.");
           }
         } else {
-          console.log('No recovery tokens found in URL, checking existing session...');
+          console.log('No hash found, checking existing session...');
           
           // Check if there's already a valid session
           try {
