@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ const ResetPassword = () => {
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
@@ -25,6 +26,7 @@ const ResetPassword = () => {
         console.log('Checking URL for auth tokens...');
         console.log('Current URL:', window.location.href);
         console.log('Hash:', window.location.hash);
+        console.log('Location pathname:', location.pathname);
         
         // Check if there's a hash with auth tokens in the URL
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -52,8 +54,9 @@ const ResetPassword = () => {
           } else if (data.session) {
             console.log('Session set successfully');
             setIsValidSession(true);
-            // Clean up the URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            // Clean up the URL without reloading
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
           } else {
             console.error('No session returned');
             setError("Erro ao configurar sessão de recuperação");
@@ -79,7 +82,7 @@ const ResetPassword = () => {
     };
 
     handleAuthRedirect();
-  }, []);
+  }, [location]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +126,7 @@ const ResetPassword = () => {
       
       // Redirecionar para login após 2 segundos
       setTimeout(() => {
-        navigate('/');
+        navigate('/login');
       }, 2000);
 
     } catch (error) {
@@ -211,7 +214,7 @@ const ResetPassword = () => {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/login')}
                   className="text-sm text-blue-600 hover:underline"
                   disabled={isLoading}
                 >
@@ -225,7 +228,7 @@ const ResetPassword = () => {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
               <Button 
-                onClick={() => navigate('/')} 
+                onClick={() => navigate('/login')} 
                 className="w-full mt-4"
               >
                 Voltar ao Login
