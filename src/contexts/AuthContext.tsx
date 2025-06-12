@@ -1,19 +1,16 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
 
-interface UserProfile {
+interface User {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'client';
-  status: 'pending' | 'approved' | 'rejected';
+  clientId?: string;
 }
 
 interface AuthContextType {
-  user: UserProfile | null;
-  session: Session | null;
+  user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
@@ -29,148 +26,113 @@ export const useAuth = () => {
   return context;
 };
 
+// Mock users database with hashed password references
+const mockUsers: (User & { passwordHash: string })[] = [
+  {
+    id: '1',
+    name: 'Admin User',
+    email: 'admin@daviflow.com',
+    role: 'admin',
+    passwordHash: 'demo_hash_123456' // In real app, this would be a proper bcrypt hash
+  },
+  {
+    id: '2',
+    name: 'João Silva',
+    email: 'joao@techcorp.com',
+    role: 'client',
+    clientId: 'techcorp',
+    passwordHash: 'demo_hash_123456'
+  },
+  {
+    id: '3',
+    name: 'Maria Santos',
+    email: 'maria@startupxyz.com',
+    role: 'client',
+    clientId: 'startupxyz',
+    passwordHash: 'demo_hash_123456'
+  },
+  {
+    id: '4',
+    name: 'Pedro Oliveira',
+    email: 'pedro@abccorp.com',
+    role: 'client',
+    clientId: 'abccorp',
+    passwordHash: 'demo_hash_123456'
+  }
+];
+
+// Simple password validation function (in real app, use bcrypt)
+const validatePassword = (inputPassword: string, storedHash: string): boolean => {
+  // For demo purposes, we'll check against the demo password
+  // In a real application, you would use bcrypt.compare()
+  return storedHash === 'demo_hash_123456' && inputPassword === '123456';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthProvider: Starting initialization');
-    let mounted = true;
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event, 'Session exists:', !!session);
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        
-        if (session?.user) {
-          console.log('User logged in, fetching profile...');
-          // Defer profile fetching to prevent deadlocks
-          setTimeout(async () => {
-            if (!mounted) return;
-            
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-
-              if (error) {
-                console.error('Error fetching profile:', error);
-                setUser(null);
-              } else if (profile) {
-                console.log('Profile loaded:', profile);
-                setUser({
-                  id: profile.id,
-                  name: profile.name,
-                  email: profile.email,
-                  role: profile.role as 'admin' | 'client',
-                  status: profile.status as 'pending' | 'approved' | 'rejected'
-                });
-              }
-            } catch (error) {
-              console.error('Error in profile fetch:', error);
-              setUser(null);
-            }
-          }, 100);
-        } else {
-          console.log('No session, clearing user');
-          setUser(null);
-        }
-        
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    );
-
-    // Check for existing session
-    const getInitialSession = async () => {
+    // Check if user is logged in from localStorage
+    const savedUser = localStorage.getItem('daviflow_user');
+    if (savedUser) {
       try {
-        console.log('Getting initial session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting session:', error);
-        }
-        console.log('Initial session retrieved:', !!session);
-        
-        if (!session && mounted) {
-          setIsLoading(false);
+        const parsedUser = JSON.parse(savedUser);
+        // Validate the saved user data
+        if (parsedUser && parsedUser.id && parsedUser.email) {
+          setUser(parsedUser);
+        } else {
+          localStorage.removeItem('daviflow_user');
         }
       } catch (error) {
-        console.error('Error getting initial session:', error);
-        if (mounted) {
-          setIsLoading(false);
-        }
+        console.error('Error parsing saved user data:', error);
+        localStorage.removeItem('daviflow_user');
       }
-    };
-
-    getInitialSession();
-
-    return () => {
-      console.log('AuthProvider: Cleaning up');
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    }
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      console.log('Login attempt for email:', email);
-      
-      if (!email || !password) {
-        console.log('Login failed: Missing credentials');
-        return false;
-      }
-
-      console.log('Attempting to sign in with Supabase...');
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password,
-      });
-      
-      if (error) {
-        console.error('Supabase login error:', error);
-        return false;
-      }
-
-      console.log('Supabase login successful:', !!data.user);
-
-      if (data.user && data.session) {
-        console.log('Login successful, user authenticated');
-        return true;
-      }
-      
-      console.log('Login failed: No user or session returned');
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
+    setIsLoading(true);
+    
+    // Input validation
+    if (!email || !password) {
+      setIsLoading(false);
       return false;
     }
-  };
 
-  const logout = async () => {
-    try {
-      console.log('Logout initiated...');
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Logout error:', error);
-      window.location.href = '/';
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setIsLoading(false);
+      return false;
     }
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Find user and validate password
+    const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    if (foundUser && validatePassword(password, foundUser.passwordHash)) {
+      const { passwordHash, ...userWithoutPassword } = foundUser;
+      setUser(userWithoutPassword);
+      localStorage.setItem('daviflow_user', JSON.stringify(userWithoutPassword));
+      setIsLoading(false);
+      return true;
+    }
+    
+    setIsLoading(false);
+    return false;
   };
 
-  console.log('AuthProvider render - isLoading:', isLoading, 'user:', !!user, 'session:', !!session);
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('daviflow_user');
+  };
 
   return (
-    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
