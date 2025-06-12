@@ -10,25 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Calendar, User, Building2, Phone, Mail, FileText, Check, X, ChevronDown, ChevronUp, Lock, MessageSquare } from "lucide-react";
+import { Plus, Edit, Building2, Check, X, ChevronDown, ChevronUp, Lock, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClients } from "@/hooks/useClients";
 
 // Mock data types
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  phone?: string;
-  status: 'prospect' | 'qualified' | 'client' | 'inactive';
-}
-
 interface Deal {
   id: string;
   title: string;
   description?: string;
   value?: number;
-  client?: Client;
+  clientId?: string;
   stage: string;
   priority: 'low' | 'medium' | 'high';
   contact?: string;
@@ -46,44 +38,18 @@ interface Stage {
 
 const KanbanBoard = () => {
   const { user } = useAuth();
+  const { clients, isLoading: clientsLoading } = useClients();
   const isClientView = user?.role === 'client';
   console.log('KanbanBoard - User:', user);
 
-  // Mock data with assigned users
-  const mockClients: Client[] = [
-    {
-      id: '1',
-      name: 'João Silva',
-      email: 'joao@techcorp.com',
-      company: 'TechCorp',
-      phone: '+55 11 99999-9999',
-      status: 'qualified'
-    },
-    {
-      id: '2',
-      name: 'Maria Santos',
-      email: 'maria@startupxyz.com',
-      company: 'StartupXYZ',
-      phone: '+55 21 88888-8888',
-      status: 'client'
-    },
-    {
-      id: '3',
-      name: 'Pedro Oliveira',
-      email: 'pedro@abccorp.com',
-      company: 'ABC Corp',
-      phone: '+55 31 77777-7777',
-      status: 'prospect'
-    }
-  ];
-
+  // Mock deals usando clientId em vez do objeto client completo
   const mockDeals: Deal[] = [
     {
       id: '1',
       title: 'Sistema de CRM Personalizado',
       description: 'Desenvolvimento de sistema CRM completo para gestão de vendas',
       value: 150000,
-      client: mockClients[0],
+      clientId: '1',
       stage: '1',
       priority: 'high',
       contact: 'João Silva - CEO',
@@ -97,7 +63,7 @@ const KanbanBoard = () => {
       title: 'Website Institucional',
       description: 'Criação de website moderno e responsivo',
       value: 25000,
-      client: mockClients[1],
+      clientId: '2',
       stage: '2',
       priority: 'medium',
       contact: 'Maria Santos - Marketing',
@@ -111,7 +77,7 @@ const KanbanBoard = () => {
       title: 'App Mobile',
       description: 'Desenvolvimento de aplicativo mobile para iOS e Android',
       value: 80000,
-      client: mockClients[2],
+      clientId: '3',
       stage: '3',
       priority: 'high',
       contact: 'Pedro Oliveira - CTO',
@@ -125,7 +91,7 @@ const KanbanBoard = () => {
       title: 'E-commerce Platform',
       description: 'Plataforma completa de e-commerce',
       value: 200000,
-      client: mockClients[0],
+      clientId: '1',
       stage: '4',
       priority: 'medium',
       contact: 'João Silva - CEO',
@@ -139,7 +105,7 @@ const KanbanBoard = () => {
       title: 'Sistema de Gestão',
       description: 'ERP customizado para gestão empresarial',
       value: 300000,
-      client: mockClients[1],
+      clientId: '2',
       stage: '1',
       priority: 'low',
       contact: 'Maria Santos - Diretora',
@@ -191,12 +157,12 @@ const KanbanBoard = () => {
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
-    client: ''
+    clientId: ''
   });
   const [newDealTitle, setNewDealTitle] = useState("");
   const [newDealDescription, setNewDealDescription] = useState("");
   const [newDealValue, setNewDealValue] = useState("");
-  const [newDealClient, setNewDealClient] = useState("");
+  const [newDealClientId, setNewDealClientId] = useState("");
   const [newDealPriority, setNewDealPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [selectedStageId, setSelectedStageId] = useState("");
   const [isAddingDeal, setIsAddingDeal] = useState(false);
@@ -204,6 +170,12 @@ const KanbanBoard = () => {
   useEffect(() => {
     setStages(getFilteredStages());
   }, [user]);
+
+  // Função para obter o cliente pelo ID
+  const getClientById = (clientId?: string) => {
+    if (!clientId) return null;
+    return clients.find(client => client.id === clientId);
+  };
 
   const handleDragEnd = (result: any) => {
     const { destination, source, draggableId } = result;
@@ -263,13 +235,11 @@ const KanbanBoard = () => {
     setEditForm({
       title: deal.title,
       description: deal.description || '',
-      client: deal.client?.id || ''
+      clientId: deal.clientId || ''
     });
   };
 
   const saveEdit = (dealId: string) => {
-    const selectedClient = mockClients.find(c => c.id === editForm.client);
-    
     setStages(prevStages => 
       prevStages.map(stage => ({
         ...stage,
@@ -279,7 +249,7 @@ const KanbanBoard = () => {
                 ...deal,
                 title: editForm.title,
                 description: editForm.description,
-                client: selectedClient
+                clientId: editForm.clientId
               }
             : deal
         )
@@ -293,7 +263,7 @@ const KanbanBoard = () => {
     setEditForm({
       title: '',
       description: '',
-      client: ''
+      clientId: ''
     });
   };
 
@@ -305,7 +275,7 @@ const KanbanBoard = () => {
       title: newDealTitle,
       description: newDealDescription,
       value: newDealValue ? parseFloat(newDealValue) : undefined,
-      client: mockClients.find(c => c.id === newDealClient),
+      clientId: newDealClientId,
       stage: selectedStageId,
       priority: newDealPriority,
       createdAt: new Date().toISOString().split('T')[0],
@@ -325,7 +295,7 @@ const KanbanBoard = () => {
     setNewDealTitle("");
     setNewDealDescription("");
     setNewDealValue("");
-    setNewDealClient("");
+    setNewDealClientId("");
     setNewDealPriority('medium');
     setSelectedStageId("");
     setIsAddingDeal(false);
@@ -343,6 +313,17 @@ const KanbanBoard = () => {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  if (clientsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Carregando clientes...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -422,12 +403,12 @@ const KanbanBoard = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="client">Cliente</Label>
-                    <Select value={newDealClient} onValueChange={setNewDealClient}>
+                    <Select value={newDealClientId} onValueChange={setNewDealClientId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o cliente" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockClients.map((client) => (
+                        {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name} - {client.company}
                           </SelectItem>
@@ -469,7 +450,7 @@ const KanbanBoard = () => {
       {isClientView && stages.length === 0 && (
         <div className="text-center py-12">
           <div className="max-w-md mx-auto">
-            <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <Building2 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-slate-900 mb-2">
               Nenhum projeto designado
             </h3>
@@ -502,177 +483,181 @@ const KanbanBoard = () => {
                         snapshot.isDraggingOver ? 'bg-blue-50 rounded-lg p-2' : ''
                       }`}
                     >
-                      {stage.deals.map((deal, index) => (
-                        <Draggable key={deal.id} draggableId={deal.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`${
-                                snapshot.isDragging ? 'rotate-2 shadow-lg' : ''
-                              }`}
-                            >
-                              <Card className="cursor-grab hover:shadow-md transition-shadow bg-white">
-                                <CardContent className="p-4">
-                                  <div className="space-y-3">
-                                    {/* Header with expand/collapse button */}
-                                    <div className="flex items-start justify-between">
-                                      {editingCard === deal.id ? (
-                                        <div className="flex-1 space-y-2">
-                                          <Input
-                                            value={editForm.title}
-                                            onChange={(e) =>
-                                              setEditForm({
-                                                ...editForm,
-                                                title: e.target.value
-                                              })
-                                            }
-                                            className="text-sm font-medium"
-                                          />
-                                          <Textarea
-                                            value={editForm.description}
-                                            onChange={(e) =>
-                                              setEditForm({
-                                                ...editForm,
-                                                description: e.target.value
-                                              })
-                                            }
-                                            className="text-xs"
-                                            rows={2}
-                                          />
-                                          <Select
-                                            value={editForm.client}
-                                            onValueChange={(value) =>
-                                              setEditForm({
-                                                ...editForm,
-                                                client: value
-                                              })
-                                            }
-                                          >
-                                            <SelectTrigger className="text-xs">
-                                              <SelectValue placeholder="Selecione a empresa" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {mockClients.map((client) => (
-                                                <SelectItem key={client.id} value={client.id}>
-                                                  {client.company}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                          <div className="flex space-x-1">
-                                            <Button size="sm" onClick={() => saveEdit(deal.id)}>
-                                              <Check className="w-3 h-3" />
-                                            </Button>
-                                            <Button size="sm" variant="outline" onClick={cancelEdit}>
-                                              <X className="w-3 h-3" />
-                                            </Button>
+                      {stage.deals.map((deal, index) => {
+                        const client = getClientById(deal.clientId);
+                        
+                        return (
+                          <Draggable key={deal.id} draggableId={deal.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`${
+                                  snapshot.isDragging ? 'rotate-2 shadow-lg' : ''
+                                }`}
+                              >
+                                <Card className="cursor-grab hover:shadow-md transition-shadow bg-white">
+                                  <CardContent className="p-4">
+                                    <div className="space-y-3">
+                                      {/* Header with expand/collapse button */}
+                                      <div className="flex items-start justify-between">
+                                        {editingCard === deal.id ? (
+                                          <div className="flex-1 space-y-2">
+                                            <Input
+                                              value={editForm.title}
+                                              onChange={(e) =>
+                                                setEditForm({
+                                                  ...editForm,
+                                                  title: e.target.value
+                                                })
+                                              }
+                                              className="text-sm font-medium"
+                                            />
+                                            <Textarea
+                                              value={editForm.description}
+                                              onChange={(e) =>
+                                                setEditForm({
+                                                  ...editForm,
+                                                  description: e.target.value
+                                                })
+                                              }
+                                              className="text-xs"
+                                              rows={2}
+                                            />
+                                            <Select
+                                              value={editForm.clientId}
+                                              onValueChange={(value) =>
+                                                setEditForm({
+                                                  ...editForm,
+                                                  clientId: value
+                                                })
+                                              }
+                                            >
+                                              <SelectTrigger className="text-xs">
+                                                <SelectValue placeholder="Selecione o cliente" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {clients.map((client) => (
+                                                  <SelectItem key={client.id} value={client.id}>
+                                                    {client.name} - {client.company}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                            <div className="flex space-x-1">
+                                              <Button size="sm" onClick={() => saveEdit(deal.id)}>
+                                                <Check className="w-3 h-3" />
+                                              </Button>
+                                              <Button size="sm" variant="outline" onClick={cancelEdit}>
+                                                <X className="w-3 h-3" />
+                                              </Button>
+                                            </div>
                                           </div>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <div className="flex-1">
-                                            <h4 className="font-medium text-slate-900 line-clamp-2 text-sm mb-1">
-                                              {deal.title}
-                                            </h4>
-                                            {deal.description && (
-                                              <p className="text-xs text-slate-600 line-clamp-2 mb-2">
-                                                {deal.description}
-                                              </p>
-                                            )}
-                                          </div>
-                                          <div className="flex items-center space-x-1">
-                                            {!isClientView && (
+                                        ) : (
+                                          <>
+                                            <div className="flex-1">
+                                              <h4 className="font-medium text-slate-900 line-clamp-2 text-sm mb-1">
+                                                {deal.title}
+                                              </h4>
+                                              {deal.description && (
+                                                <p className="text-xs text-slate-600 line-clamp-2 mb-2">
+                                                  {deal.description}
+                                                </p>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center space-x-1">
+                                              {!isClientView && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => startEditing(deal)}
+                                                  className="h-6 w-6 p-0"
+                                                >
+                                                  <Edit className="w-3 h-3" />
+                                                </Button>
+                                              )}
                                               <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                onClick={() => startEditing(deal)}
+                                                onClick={() => toggleCardExpand(deal.id)}
                                                 className="h-6 w-6 p-0"
                                               >
-                                                <Edit className="w-3 h-3" />
+                                                {expandedCards.has(deal.id) ? (
+                                                  <ChevronUp className="w-3 h-3" />
+                                                ) : (
+                                                  <ChevronDown className="w-3 h-3" />
+                                                )}
                                               </Button>
-                                            )}
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={() => toggleCardExpand(deal.id)}
-                                              className="h-6 w-6 p-0"
-                                            >
-                                              {expandedCards.has(deal.id) ? (
-                                                <ChevronUp className="w-3 h-3" />
-                                              ) : (
-                                                <ChevronDown className="w-3 h-3" />
-                                              )}
-                                            </Button>
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                    
-                                    {/* Client info - Always visible */}
-                                    {deal.client && (
-                                      <div className="flex items-center space-x-2">
-                                        <Avatar className="w-6 h-6">
-                                          <AvatarFallback className="text-xs bg-blue-100 text-blue-800">
-                                            <Building2 className="w-3 h-3" />
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-xs font-medium text-slate-700">
-                                          {deal.client.company}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    {/* Expanded content - Only when expanded */}
-                                    {expandedCards.has(deal.id) && (
-                                      <div className="space-y-3 pt-2 border-t border-slate-100">
-                                        {/* Confidential Information */}
-                                        {deal.confidential && (
-                                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                            <div className="flex items-start space-x-2">
-                                              <Lock className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                                              <div>
-                                                <h5 className="text-xs font-medium text-amber-800 mb-1">
-                                                  Informação Confidencial
-                                                </h5>
-                                                <p className="text-xs text-amber-700">
-                                                  {deal.confidential}
-                                                </p>
-                                              </div>
                                             </div>
-                                          </div>
+                                          </>
                                         )}
+                                      </div>
+                                      
+                                      {/* Client info - Always visible */}
+                                      {client && (
+                                        <div className="flex items-center space-x-2">
+                                          <Avatar className="w-6 h-6">
+                                            <AvatarFallback className="text-xs bg-blue-100 text-blue-800">
+                                              <Building2 className="w-3 h-3" />
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-xs font-medium text-slate-700">
+                                            {client.company}
+                                          </span>
+                                        </div>
+                                      )}
 
-                                        {/* Notes */}
-                                        {deal.notes && deal.notes.length > 0 && (
-                                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                            <div className="flex items-start space-x-2">
-                                              <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                              <div className="flex-1">
-                                                <h5 className="text-xs font-medium text-blue-800 mb-2">
-                                                  Anotações
-                                                </h5>
-                                                <div className="space-y-1">
-                                                  {deal.notes.map((note, index) => (
-                                                    <p key={index} className="text-xs text-blue-700">
-                                                      • {note}
-                                                    </p>
-                                                  ))}
+                                      {/* Expanded content - Only when expanded */}
+                                      {expandedCards.has(deal.id) && (
+                                        <div className="space-y-3 pt-2 border-t border-slate-100">
+                                          {/* Confidential Information */}
+                                          {deal.confidential && (
+                                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                              <div className="flex items-start space-x-2">
+                                                <Lock className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                  <h5 className="text-xs font-medium text-amber-800 mb-1">
+                                                    Informação Confidencial
+                                                  </h5>
+                                                  <p className="text-xs text-amber-700">
+                                                    {deal.confidential}
+                                                  </p>
                                                 </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
+                                          )}
+
+                                          {/* Notes */}
+                                          {deal.notes && deal.notes.length > 0 && (
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                              <div className="flex items-start space-x-2">
+                                                <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                                <div className="flex-1">
+                                                  <h5 className="text-xs font-medium text-blue-800 mb-2">
+                                                    Anotações
+                                                  </h5>
+                                                  <div className="space-y-1">
+                                                    {deal.notes.map((note, index) => (
+                                                      <p key={index} className="text-xs text-blue-700">
+                                                        • {note}
+                                                      </p>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })}
                       {provided.placeholder}
                     </div>
                   )}
