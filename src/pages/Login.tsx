@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,15 +43,15 @@ const Login = () => {
       
       if (!success) {
         setError("Email ou senha inválidos. Verifique suas credenciais e tente novamente.");
+        setIsLoggingIn(false);
       } else {
-        console.log('Login successful, should redirect...');
-        // Force page reload to ensure clean state
+        console.log('Login successful, redirecting...');
+        // Don't set loading to false here, let the auth state change handle it
         window.location.href = '/';
       }
     } catch (error) {
       console.error('Login error in component:', error);
       setError("Erro inesperado durante o login. Tente novamente.");
-    } finally {
       setIsLoggingIn(false);
     }
   };
