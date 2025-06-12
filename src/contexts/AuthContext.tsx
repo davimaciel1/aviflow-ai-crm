@@ -1,16 +1,19 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
 
-interface User {
+interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'client';
-  clientId?: string;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
+  session: Session | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
@@ -26,151 +29,174 @@ export const useAuth = () => {
   return context;
 };
 
-// Mock users database with hashed password references
-const mockUsers: (User & { passwordHash: string })[] = [
-  {
-    id: '1',
-    name: 'Davi Admin',
-    email: 'davi@ippax.com',
-    role: 'admin',
-    passwordHash: 'admin123' // Senha simples para teste
-  },
-  {
-    id: '2',
-    name: 'João Silva',
-    email: 'joao@techcorp.com',
-    role: 'client',
-    clientId: 'techcorp',
-    passwordHash: '123456'
-  },
-  {
-    id: '3',
-    name: 'Maria Santos',
-    email: 'maria@startupxyz.com',
-    role: 'client',
-    clientId: 'startupxyz',
-    passwordHash: '123456'
-  },
-  {
-    id: '4',
-    name: 'Pedro Oliveira',
-    email: 'pedro@abccorp.com',
-    role: 'client',
-    clientId: 'abccorp',
-    passwordHash: '123456'
-  }
-];
-
-// Simple password validation function
-const validatePassword = (inputPassword: string, storedHash: string): boolean => {
-  console.log('validatePassword - input:', inputPassword, 'stored:', storedHash);
-  return inputPassword === storedHash;
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthProvider - useEffect iniciado');
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem('daviflow_user');
-    console.log('AuthProvider - savedUser from localStorage:', savedUser);
-    
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        console.log('AuthProvider - parsedUser:', parsedUser);
+    console.log('AuthProvider: Starting initialization');
+    let mounted = true;
+    let sessionInitialized = false;
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id);
         
-        // Validate the saved user data
-        if (parsedUser && parsedUser.id && parsedUser.email) {
-          console.log('AuthProvider - Setting user from localStorage:', parsedUser);
-          setUser(parsedUser);
-        } else {
-          console.log('AuthProvider - Invalid saved user data, removing from localStorage');
-          localStorage.removeItem('daviflow_user');
+        if (!mounted) {
+          console.log('Component unmounted, ignoring auth event');
+          return;
         }
-      } catch (error) {
-        console.error('AuthProvider - Error parsing saved user data:', error);
-        localStorage.removeItem('daviflow_user');
+        
+        setSession(session);
+        
+        if (session?.user) {
+          console.log('Fetching profile for user:', session.user.id);
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (!mounted) return;
+
+            if (error) {
+              console.error('Error fetching profile:', error);
+              setUser(null);
+            } else if (profile) {
+              console.log('Profile loaded:', profile);
+              setUser({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as 'admin' | 'client',
+                status: profile.status as 'pending' | 'approved' | 'rejected'
+              });
+            } else {
+              console.log('No profile found for user');
+              setUser(null);
+            }
+          } catch (error) {
+            console.error('Error in auth state change:', error);
+            if (mounted) {
+              setUser(null);
+            }
+          }
+        } else {
+          console.log('No session, clearing user');
+          if (mounted) {
+            setUser(null);
+          }
+        }
+        
+        // Only set loading to false after we've processed the initial session
+        if (mounted && !sessionInitialized) {
+          console.log('Session initialized, setting loading to false');
+          sessionInitialized = true;
+          setIsLoading(false);
+        }
       }
-    } else {
-      console.log('AuthProvider - No saved user in localStorage');
-    }
-    
-    setIsLoading(false);
-    console.log('AuthProvider - useEffect finalizado, isLoading set to false');
+    );
+
+    // Check for existing session
+    const getInitialSession = async () => {
+      try {
+        console.log('Getting initial session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        console.log('Initial session retrieved:', !!session, 'User ID:', session?.user?.id);
+        
+        // If no session, we can stop loading immediately
+        if (!session && mounted) {
+          console.log('No initial session found, stopping loading');
+          sessionInitialized = true;
+          setIsLoading(false);
+        }
+        // If there is a session, the onAuthStateChange will handle it
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+        if (mounted) {
+          console.log('Error getting session, stopping loading');
+          sessionInitialized = true;
+          setIsLoading(false);
+        }
+      }
+    };
+
+    getInitialSession();
+
+    // Fallback: if nothing happens within 5 seconds, stop loading
+    const fallbackTimer = setTimeout(() => {
+      if (mounted && !sessionInitialized) {
+        console.log('Fallback: Stopping loading after 5 seconds');
+        sessionInitialized = true;
+        setIsLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      console.log('AuthProvider: Cleaning up');
+      mounted = false;
+      clearTimeout(fallbackTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    console.log('login - iniciado com email:', email, 'password:', password);
-    setIsLoading(true);
-    
-    // Input validation
-    if (!email || !password) {
-      console.log('login - Email ou senha vazio');
-      setIsLoading(false);
-      return false;
-    }
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.log('login - Formato de email inválido');
-      setIsLoading(false);
-      return false;
-    }
-    
-    console.log('login - Procurando usuário...');
-    console.log('login - Usuários disponíveis:', mockUsers.map(u => ({ email: u.email, password: u.passwordHash })));
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Find user and validate password
-    const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    console.log('login - Usuário encontrado:', foundUser);
-    
-    if (foundUser) {
-      console.log('login - Validando senha...');
-      const isPasswordValid = validatePassword(password, foundUser.passwordHash);
-      console.log('login - Senha válida:', isPasswordValid);
-      
-      if (isPasswordValid) {
-        const { passwordHash, ...userWithoutPassword } = foundUser;
-        console.log('login - Login bem-sucedido, setando usuário:', userWithoutPassword);
-        setUser(userWithoutPassword);
-        localStorage.setItem('daviflow_user', JSON.stringify(userWithoutPassword));
-        setIsLoading(false);
-        return true;
-      } else {
-        console.log('login - Senha incorreta');
+    try {
+      // Input validation
+      if (!email || !password) {
+        return false;
       }
-    } else {
-      console.log('login - Usuário não encontrado');
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return false;
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      });
+      
+      if (error) {
+        console.error('Login error:', error);
+        return false;
+      }
+
+      if (data.user) {
+        // Session and user will be set by the auth state change listener
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const logout = () => {
-    console.log('logout - executado');
-    setUser(null);
-    localStorage.removeItem('daviflow_user');
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      // Session and user will be cleared by the auth state change listener
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const contextValue = {
-    user,
-    login,
-    logout,
-    isLoading
-  };
-
-  console.log('AuthProvider - renderizando com contextValue:', contextValue);
+  console.log('AuthProvider render - isLoading:', isLoading, 'user:', !!user, 'session:', !!session);
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
