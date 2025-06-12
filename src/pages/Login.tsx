@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,8 +119,15 @@ const Login = () => {
     try {
       console.log('Enviando email de recuperação para:', email);
       
+      // Use o domínio personalizado se estiver disponível
+      const redirectUrl = window.location.hostname.includes('lovableproject.com') 
+        ? `${window.location.origin}/reset-password`
+        : 'https://crm.ippax.com/reset-password';
+      
+      console.log('Redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: redirectUrl
       });
 
       if (error) {
