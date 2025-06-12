@@ -9,6 +9,10 @@ export interface Client {
   company: string;
   phone?: string;
   status: 'prospect' | 'qualified' | 'client' | 'inactive';
+  avatar?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export const useClients = () => {
@@ -27,7 +31,12 @@ export const useClients = () => {
           console.error('Error loading clients:', error);
           setClients([]);
         } else {
-          setClients(data || []);
+          // Type assertion to ensure status field matches our enum
+          const typedData = (data || []).map(client => ({
+            ...client,
+            status: client.status as 'prospect' | 'qualified' | 'client' | 'inactive'
+          }));
+          setClients(typedData);
         }
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -40,7 +49,7 @@ export const useClients = () => {
     loadClients();
   }, []);
 
-  const addClient = async (client: Omit<Client, 'id'>) => {
+  const addClient = async (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
         .from('clients')
@@ -53,8 +62,12 @@ export const useClients = () => {
         return null;
       }
 
-      setClients(prev => [...prev, data]);
-      return data;
+      const typedData = {
+        ...data,
+        status: data.status as 'prospect' | 'qualified' | 'client' | 'inactive'
+      };
+      setClients(prev => [...prev, typedData]);
+      return typedData;
     } catch (error) {
       console.error('Error adding client:', error);
       return null;
