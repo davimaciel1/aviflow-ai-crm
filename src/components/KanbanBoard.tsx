@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Edit, Building2, Check, X, ChevronDown, ChevronUp, Lock, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClients } from "@/hooks/useClients";
+import ClientSelector from "@/components/ClientSelector";
 
 // Mock data types
 interface Deal {
@@ -405,24 +406,11 @@ const KanbanBoard = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="client">Cliente</Label>
-                    <Select value={newDealClientId} onValueChange={setNewDealClientId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.length > 0 ? (
-                          clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name} - {client.company}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-2 text-xs text-muted-foreground">
-                            Nenhum cliente disponível
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <ClientSelector
+                      value={newDealClientId}
+                      onValueChange={setNewDealClientId}
+                      placeholder="Selecione o cliente"
+                    />
                   </div>
                   
                   <div className="space-y-2">
@@ -533,7 +521,7 @@ const KanbanBoard = () => {
                                               className="text-xs"
                                               rows={2}
                                             />
-                                            <Select
+                                            <ClientSelector
                                               value={editForm.clientId}
                                               onValueChange={(value) =>
                                                 setEditForm({
@@ -541,24 +529,8 @@ const KanbanBoard = () => {
                                                   clientId: value
                                                 })
                                               }
-                                            >
-                                              <SelectTrigger className="text-xs bg-background border border-input">
-                                                <SelectValue placeholder="Selecione o cliente" />
-                                              </SelectTrigger>
-                                              <SelectContent className="bg-background border border-input z-50">
-                                                {clients.length > 0 ? (
-                                                  clients.map((client) => (
-                                                    <SelectItem key={client.id} value={client.id}>
-                                                      {client.name} - {client.company}
-                                                    </SelectItem>
-                                                  ))
-                                                ) : (
-                                                  <div className="px-2 py-2 text-xs text-muted-foreground">
-                                                    Nenhum cliente disponível
-                                                  </div>
-                                                )}
-                                              </SelectContent>
-                                            </Select>
+                                              placeholder="Selecione o cliente"
+                                            />
                                             <div className="flex space-x-1">
                                               <Button size="sm" onClick={() => saveEdit(deal.id)}>
                                                 <Check className="w-3 h-3" />
