@@ -1,32 +1,30 @@
+
 import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Plus, 
-  MoreHorizontal, 
   Edit, 
-  Trash2, 
-  DollarSign, 
   Calendar,
   User,
   Building2,
   Phone,
   Mail,
-  MapPin,
   FileText,
   Check,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Lock,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -51,7 +49,8 @@ interface Deal {
   contact?: string;
   confidential?: string;
   createdAt: string;
-  assignedUserId?: string; // ID do usuário designado para este deal
+  assignedUserId?: string;
+  notes?: string[];
 }
 
 interface Stage {
@@ -104,9 +103,10 @@ const KanbanBoard = () => {
       stage: '1',
       priority: 'high',
       contact: 'João Silva - CEO',
-      confidential: 'Orçamento aprovado pela diretoria',
+      confidential: 'Orçamento aprovado pela diretoria. Projeto tem prazo apertado.',
       createdAt: '2024-01-15',
-      assignedUserId: user?.id // Admin pode ver todos
+      assignedUserId: user?.id,
+      notes: ['Reunião inicial marcada', 'Cliente interessado em integração com sistema atual']
     },
     {
       id: '2',
@@ -118,7 +118,9 @@ const KanbanBoard = () => {
       priority: 'medium',
       contact: 'Maria Santos - Marketing',
       createdAt: '2024-01-20',
-      assignedUserId: 'client-user-id-1' // Seria designado para um cliente específico
+      assignedUserId: 'client-user-id-1',
+      confidential: 'Budget limitado, negociação em andamento.',
+      notes: ['Referências de design enviadas', 'Aguardando aprovação do wireframe']
     },
     {
       id: '3',
@@ -129,9 +131,10 @@ const KanbanBoard = () => {
       stage: '3',
       priority: 'high',
       contact: 'Pedro Oliveira - CTO',
-      confidential: 'Prazo apertado para lançamento',
+      confidential: 'Prazo apertado para lançamento no Q2. Competidor no mercado.',
       createdAt: '2024-01-25',
-      assignedUserId: user?.id // Designado para o usuário atual
+      assignedUserId: user?.id,
+      notes: ['Especificações técnicas definidas', 'Mockups aprovados', 'Desenvolvimento iniciado']
     },
     {
       id: '4',
@@ -143,7 +146,9 @@ const KanbanBoard = () => {
       priority: 'medium',
       contact: 'João Silva - CEO',
       createdAt: '2024-02-01',
-      assignedUserId: 'other-user-id' // Designado para outro usuário
+      assignedUserId: 'other-user-id',
+      confidential: 'Integração com sistema ERP existente obrigatória.',
+      notes: ['Proposta enviada', 'Aguardando assinatura do contrato']
     },
     {
       id: '5',
@@ -155,7 +160,9 @@ const KanbanBoard = () => {
       priority: 'low',
       contact: 'Maria Santos - Diretora',
       createdAt: '2024-02-05',
-      assignedUserId: user?.id // Designado para o usuário atual
+      assignedUserId: user?.id,
+      confidential: 'Projeto de longo prazo, implementação em fases.',
+      notes: ['Levantamento de requisitos em andamento']
     }
   ];
 
@@ -185,13 +192,11 @@ const KanbanBoard = () => {
   // Filter stages based on user role and assigned deals
   const getFilteredStages = () => {
     if (isClientView) {
-      // Para clientes, mostrar apenas deals designados para eles
       return allStages.map(stage => ({
         ...stage,
         deals: stage.deals.filter(deal => deal.assignedUserId === user?.id)
       })).filter(stage => stage.deals.length > 0);
     } else {
-      // Para admins, mostrar todos os deals
       return allStages;
     }
   };
@@ -301,7 +306,8 @@ const KanbanBoard = () => {
       stage: selectedStageId,
       priority: newDealPriority,
       createdAt: new Date().toISOString().split('T')[0],
-      assignedUserId: user?.id // Deals criados são designados para o usuário que os criou
+      assignedUserId: user?.id,
+      notes: []
     };
 
     setStages(prevStages =>
@@ -329,14 +335,6 @@ const KanbanBoard = () => {
       case 'low': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
-  };
-
-  const formatCurrency = (value?: number) => {
-    if (!value) return 'Valor não informado';
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
   };
 
   return (
@@ -538,12 +536,12 @@ const KanbanBoard = () => {
                                       ) : (
                                         <>
                                           <div className="flex-1">
-                                            <h4 className="font-medium text-slate-900 line-clamp-2 text-sm">
+                                            <h4 className="font-medium text-slate-900 line-clamp-2 text-sm mb-1">
                                               {deal.title}
                                             </h4>
-                                            {deal.client && (
-                                              <p className="text-xs text-slate-500 mt-1">
-                                                {deal.client.company}
+                                            {deal.description && (
+                                              <p className="text-xs text-slate-600 line-clamp-2 mb-2">
+                                                {deal.description}
                                               </p>
                                             )}
                                           </div>
@@ -575,62 +573,98 @@ const KanbanBoard = () => {
                                       )}
                                     </div>
                                     
-                                    {/* Priority badge */}
-                                    <div className="flex items-center justify-between">
-                                      <Badge className={`text-xs ${getPriorityColor(deal.priority)}`}>
-                                        {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                                      </Badge>
-                                      
-                                      {deal.client && (
-                                        <Avatar className="w-6 h-6">
-                                          <AvatarFallback className="text-xs">
-                                            {deal.client.name.split(' ').map(n => n[0]).join('')}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                      )}
-                                    </div>
-
-                                    {/* Expanded content */}
-                                    {expandedCards.has(deal.id) && (
-                                      <div className="space-y-2 pt-2 border-t border-slate-100">
-                                        {deal.description && (
-                                          <p className="text-xs text-slate-600">
-                                            {deal.description}
-                                          </p>
-                                        )}
-                                        
-                                        {deal.contact && (
-                                          <div className="flex items-center space-x-2">
-                                            <User className="w-3 h-3 text-slate-400" />
-                                            <span className="text-xs text-slate-600">{deal.contact}</span>
-                                          </div>
-                                        )}
-                                        
+                                    {/* Client info and priority - Always visible */}
+                                    {deal.client && (
+                                      <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-2">
-                                          <Calendar className="w-3 h-3 text-slate-400" />
-                                          <span className="text-xs text-slate-600">
-                                            {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
+                                          <Avatar className="w-6 h-6">
+                                            <AvatarFallback className="text-xs bg-blue-100 text-blue-800">
+                                              <Building2 className="w-3 h-3" />
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-xs font-medium text-slate-700">
+                                            {deal.client.company}
                                           </span>
                                         </div>
+                                        
+                                        <Badge className={`text-xs ${getPriorityColor(deal.priority)}`}>
+                                          {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
+                                        </Badge>
+                                      </div>
+                                    )}
 
-                                        {deal.client && (
-                                          <div className="space-y-1">
-                                            <div className="flex items-center space-x-2">
-                                              <Building2 className="w-3 h-3 text-slate-400" />
-                                              <span className="text-xs text-slate-600">{deal.client.company}</span>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                              <Mail className="w-3 h-3 text-slate-400" />
-                                              <span className="text-xs text-slate-600">{deal.client.email}</span>
-                                            </div>
-                                            {deal.client.phone && (
-                                              <div className="flex items-center space-x-2">
-                                                <Phone className="w-3 h-3 text-slate-400" />
-                                                <span className="text-xs text-slate-600">{deal.client.phone}</span>
+                                    {/* Expanded content - Only when expanded */}
+                                    {expandedCards.has(deal.id) && (
+                                      <div className="space-y-3 pt-2 border-t border-slate-100">
+                                        {/* Confidential Information */}
+                                        {deal.confidential && (
+                                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                            <div className="flex items-start space-x-2">
+                                              <Lock className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                              <div>
+                                                <h5 className="text-xs font-medium text-amber-800 mb-1">
+                                                  Informação Confidencial
+                                                </h5>
+                                                <p className="text-xs text-amber-700">
+                                                  {deal.confidential}
+                                                </p>
                                               </div>
-                                            )}
+                                            </div>
                                           </div>
                                         )}
+
+                                        {/* Notes */}
+                                        {deal.notes && deal.notes.length > 0 && (
+                                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                            <div className="flex items-start space-x-2">
+                                              <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                              <div className="flex-1">
+                                                <h5 className="text-xs font-medium text-blue-800 mb-2">
+                                                  Anotações
+                                                </h5>
+                                                <div className="space-y-1">
+                                                  {deal.notes.map((note, index) => (
+                                                    <p key={index} className="text-xs text-blue-700">
+                                                      • {note}
+                                                    </p>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Additional details */}
+                                        <div className="space-y-2">
+                                          {deal.contact && (
+                                            <div className="flex items-center space-x-2">
+                                              <User className="w-3 h-3 text-slate-400" />
+                                              <span className="text-xs text-slate-600">{deal.contact}</span>
+                                            </div>
+                                          )}
+                                          
+                                          <div className="flex items-center space-x-2">
+                                            <Calendar className="w-3 h-3 text-slate-400" />
+                                            <span className="text-xs text-slate-600">
+                                              {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
+                                            </span>
+                                          </div>
+
+                                          {deal.client && (
+                                            <div className="space-y-1">
+                                              <div className="flex items-center space-x-2">
+                                                <Mail className="w-3 h-3 text-slate-400" />
+                                                <span className="text-xs text-slate-600">{deal.client.email}</span>
+                                              </div>
+                                              {deal.client.phone && (
+                                                <div className="flex items-center space-x-2">
+                                                  <Phone className="w-3 h-3 text-slate-400" />
+                                                  <span className="text-xs text-slate-600">{deal.client.phone}</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>

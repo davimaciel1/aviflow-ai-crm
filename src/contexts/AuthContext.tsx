@@ -1,21 +1,22 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
 
-interface User {
+// User interface
+export interface AppUser {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'client';
 }
 
+// Auth context interface
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  isLoading: boolean;
-  createUser: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
-  getAllUsers: () => Promise<User[]>;
+  user: AppUser | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,196 +29,178 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthProvider - Verificando usuário salvo');
-    const savedUser = localStorage.getItem('daviflow_current_user');
-    
-    if (savedUser) {
+    // Check for existing session
+    const checkUser = async () => {
       try {
-        const parsedUser = JSON.parse(savedUser);
-        console.log('AuthProvider - Usuário encontrado:', parsedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('AuthProvider - Erro ao analisar usuário salvo:', error);
-        localStorage.removeItem('daviflow_current_user');
-      }
-    }
-    
-    setIsLoading(false);
-  }, []);
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          // Fetch user profile from database
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    console.log('Login - Tentativa com:', email);
-    setIsLoading(true);
-    
-    if (!email || !password) {
-      console.log('Login - Email ou senha vazios');
-      setIsLoading(false);
-      return false;
-    }
-
-    try {
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Para simplicidade inicial, vamos verificar usuários hardcoded primeiro
-      const hardcodedUsers: Record<string, { password: string; user: User }> = {
-        'davi@ippax.com': {
-          password: 'admin123',
-          user: {
-            id: 'admin-hardcoded-id',
-            name: 'Davi Admin',
-            email: 'davi@ippax.com',
-            role: 'admin'
+          if (profile && !error) {
+            setUser({
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role as 'admin' | 'client'
+            });
           }
         }
-      };
-
-      const hardcodedUser = hardcodedUsers[email.toLowerCase()];
-      if (hardcodedUser && hardcodedUser.password === password) {
-        console.log('Login - Usuário hardcoded encontrado:', hardcodedUser.user);
-        setUser(hardcodedUser.user);
-        localStorage.setItem('daviflow_current_user', JSON.stringify(hardcodedUser.user));
-        setIsLoading(false);
-        return true;
+      } catch (error) {
+        console.error('Error checking user:', error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      console.log('Login - Buscando usuário no banco:', email.toLowerCase());
-      
-      // Buscar usuário no Supabase profiles
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .single();
+    checkUser();
 
-      console.log('Login - Resultado da busca:', { profile, profileError });
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Fetch user profile
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
 
-      if (profileError || !profile) {
-        console.log('Login - Usuário não encontrado no banco de dados');
-        setIsLoading(false);
-        return false;
+        if (profile && !error) {
+          setUser({
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role as 'admin' | 'client'
+          });
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
       }
+      setLoading(false);
+    });
 
-      // Para usuários do banco, usar senhas padrão baseadas no role
-      const defaultPasswords: Record<string, string> = {
-        'admin': 'admin123',
-        'client': 'client123'
-      };
+    return () => subscription.unsubscribe();
+  }, []);
 
-      const expectedPassword = defaultPasswords[profile.role] || 'client123';
-      if (expectedPassword !== password) {
-        console.log('Login - Senha inválida para:', email);
-        setIsLoading(false);
-        return false;
-      }
-
-      const loggedUser: User = {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role as 'admin' | 'client'
-      };
-
-      console.log('Login - Usuário logado com sucesso:', loggedUser);
-      setUser(loggedUser);
-      localStorage.setItem('daviflow_current_user', JSON.stringify(loggedUser));
-      setIsLoading(false);
-      return true;
-    } catch (error) {
-      console.error('Login - Erro:', error);
-      setIsLoading(false);
-      return false;
-    }
-  };
-
-  const logout = () => {
-    console.log('Logout executado');
-    setUser(null);
-    localStorage.removeItem('daviflow_current_user');
-  };
-
-  const createUser = async (userData: Omit<User, 'id'> & { password: string }): Promise<boolean> => {
-    if (!user || user.role !== 'admin') {
-      return false;
-    }
-
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Verificar se email já existe
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', userData.email.toLowerCase())
-        .single();
+      setLoading(true);
 
-      if (existingUser) {
-        return false; // Email já existe
+      // Hardcoded admin user for testing
+      if (email === 'davi@ippax.com' && password === 'admin123') {
+        const adminUser: AppUser = {
+          id: 'admin-hardcoded-id',
+          name: 'Davi Admin',
+          email: 'davi@ippax.com',
+          role: 'admin'
+        };
+        setUser(adminUser);
+        setLoading(false);
+        return { success: true };
       }
 
-      // Criar perfil usando apenas os campos obrigatórios
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          name: userData.name,
-          email: userData.email.toLowerCase(),
-          role: userData.role
-        })
-        .select()
-        .single();
-
-      if (profileError || !profile) {
-        console.error('Erro ao criar perfil:', profileError);
-        return false;
-      }
-
-      console.log('Usuário criado com sucesso:', profile);
-      return true;
-    } catch (error) {
-      console.error('Erro ao criar usuário:', error);
-      return false;
-    }
-  };
-
-  const getAllUsers = async (): Promise<User[]> => {
-    try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: true });
+      // Try Supabase authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
       if (error) {
-        console.error('Erro ao buscar usuários:', error);
-        return [];
+        // Try to find user in database and use default password
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', email);
+
+        if (profiles && profiles.length > 0) {
+          const profile = profiles[0];
+          const defaultPassword = profile.role === 'admin' ? 'admin123' : 'client123';
+          
+          if (password === defaultPassword) {
+            setUser({
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role as 'admin' | 'client'
+            });
+            setLoading(false);
+            return { success: true };
+          }
+        }
+
+        setLoading(false);
+        return { success: false, error: error.message };
       }
 
-      return profiles.map(profile => ({
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role as 'admin' | 'client'
-      }));
+      // If Supabase auth successful, fetch profile
+      if (data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profile && !profileError) {
+          setUser({
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role as 'admin' | 'client'
+          });
+        } else {
+          // Create profile if it doesn't exist
+          const newProfile = {
+            id: data.user.id,
+            name: data.user.email?.split('@')[0] || 'User',
+            email: data.user.email || '',
+            role: 'client' as const
+          };
+
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert(newProfile);
+
+          if (!insertError) {
+            setUser(newProfile);
+          }
+        }
+      }
+
+      setLoading(false);
+      return { success: true };
     } catch (error) {
-      console.error('Erro ao buscar usuários:', error);
-      return [];
+      setLoading(false);
+      return { success: false, error: 'Erro inesperado durante o login' };
     }
   };
 
-  const contextValue = {
+  const logout = async (): Promise<void> => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  const value: AuthContextType = {
     user,
     login,
     logout,
-    isLoading,
-    createUser,
-    getAllUsers
+    loading,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
