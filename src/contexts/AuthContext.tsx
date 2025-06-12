@@ -1,22 +1,21 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
 
-interface UserProfile {
+interface User {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'client';
-  status: 'pending' | 'approved' | 'rejected';
 }
 
 interface AuthContextType {
-  user: UserProfile | null;
-  session: Session | null;
+  user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  createUser: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
+  getAllUsers: () => Promise<User[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,173 +29,194 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthProvider: Starting initialization');
-    let mounted = true;
-    let sessionInitialized = false;
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id);
-        
-        if (!mounted) {
-          console.log('Component unmounted, ignoring auth event');
-          return;
-        }
-        
-        setSession(session);
-        
-        if (session?.user) {
-          console.log('Fetching profile for user:', session.user.id);
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
-            if (!mounted) return;
-
-            if (error) {
-              console.error('Error fetching profile:', error);
-              setUser(null);
-            } else if (profile) {
-              console.log('Profile loaded:', profile);
-              setUser({
-                id: profile.id,
-                name: profile.name,
-                email: profile.email,
-                role: profile.role as 'admin' | 'client',
-                status: profile.status as 'pending' | 'approved' | 'rejected'
-              });
-            } else {
-              console.log('No profile found for user');
-              setUser(null);
-            }
-          } catch (error) {
-            console.error('Error in auth state change:', error);
-            if (mounted) {
-              setUser(null);
-            }
-          }
-        } else {
-          console.log('No session, clearing user');
-          if (mounted) {
-            setUser(null);
-          }
-        }
-        
-        // Only set loading to false after we've processed the initial session
-        if (mounted && !sessionInitialized) {
-          console.log('Session initialized, setting loading to false');
-          sessionInitialized = true;
-          setIsLoading(false);
-        }
-      }
-    );
-
-    // Check for existing session
-    const getInitialSession = async () => {
+    console.log('AuthProvider - Verificando usuário salvo');
+    const savedUser = localStorage.getItem('daviflow_current_user');
+    
+    if (savedUser) {
       try {
-        console.log('Getting initial session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting session:', error);
-        }
-        console.log('Initial session retrieved:', !!session, 'User ID:', session?.user?.id);
-        
-        // If no session, we can stop loading immediately
-        if (!session && mounted) {
-          console.log('No initial session found, stopping loading');
-          sessionInitialized = true;
-          setIsLoading(false);
-        }
-        // If there is a session, the onAuthStateChange will handle it
+        const parsedUser = JSON.parse(savedUser);
+        console.log('AuthProvider - Usuário encontrado:', parsedUser);
+        setUser(parsedUser);
       } catch (error) {
-        console.error('Error getting initial session:', error);
-        if (mounted) {
-          console.log('Error getting session, stopping loading');
-          sessionInitialized = true;
-          setIsLoading(false);
-        }
+        console.error('AuthProvider - Erro ao analisar usuário salvo:', error);
+        localStorage.removeItem('daviflow_current_user');
       }
-    };
-
-    getInitialSession();
-
-    // Fallback: if nothing happens within 5 seconds, stop loading
-    const fallbackTimer = setTimeout(() => {
-      if (mounted && !sessionInitialized) {
-        console.log('Fallback: Stopping loading after 5 seconds');
-        sessionInitialized = true;
-        setIsLoading(false);
-      }
-    }, 5000);
-
-    return () => {
-      console.log('AuthProvider: Cleaning up');
-      mounted = false;
-      clearTimeout(fallbackTimer);
-      subscription.unsubscribe();
-    };
+    }
+    
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    console.log('Login - Tentativa com:', email);
+    setIsLoading(true);
+    
+    if (!email || !password) {
+      console.log('Login - Email ou senha vazios');
+      setIsLoading(false);
+      return false;
+    }
+
     try {
-      // Input validation
-      if (!email || !password) {
-        return false;
-      }
-
-      // Email format validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return false;
-      }
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password,
-      });
-      
-      if (error) {
-        console.error('Login error:', error);
-        return false;
-      }
+      // Para simplicidade inicial, vamos verificar usuários hardcoded primeiro
+      const hardcodedUsers: Record<string, { password: string; user: User }> = {
+        'davi@ippax.com': {
+          password: 'admin123',
+          user: {
+            id: 'admin-hardcoded-id',
+            name: 'Davi Admin',
+            email: 'davi@ippax.com',
+            role: 'admin'
+          }
+        }
+      };
 
-      if (data.user) {
-        // Session and user will be set by the auth state change listener
+      const hardcodedUser = hardcodedUsers[email.toLowerCase()];
+      if (hardcodedUser && hardcodedUser.password === password) {
+        console.log('Login - Usuário hardcoded encontrado:', hardcodedUser.user);
+        setUser(hardcodedUser.user);
+        localStorage.setItem('daviflow_current_user', JSON.stringify(hardcodedUser.user));
+        setIsLoading(false);
         return true;
       }
+
+      console.log('Login - Buscando usuário no banco:', email.toLowerCase());
       
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
+      // Buscar usuário no Supabase profiles
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
 
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
+      console.log('Login - Resultado da busca:', { profile, profileError });
+
+      if (profileError || !profile) {
+        console.log('Login - Usuário não encontrado no banco de dados');
+        setIsLoading(false);
+        return false;
       }
-      // Session and user will be cleared by the auth state change listener
+
+      // Para usuários do banco, usar senhas padrão baseadas no role
+      const defaultPasswords: Record<string, string> = {
+        'admin': 'admin123',
+        'client': 'client123'
+      };
+
+      const expectedPassword = defaultPasswords[profile.role] || 'client123';
+      if (expectedPassword !== password) {
+        console.log('Login - Senha inválida para:', email);
+        setIsLoading(false);
+        return false;
+      }
+
+      const loggedUser: User = {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as 'admin' | 'client'
+      };
+
+      console.log('Login - Usuário logado com sucesso:', loggedUser);
+      setUser(loggedUser);
+      localStorage.setItem('daviflow_current_user', JSON.stringify(loggedUser));
+      setIsLoading(false);
+      return true;
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Login - Erro:', error);
+      setIsLoading(false);
+      return false;
     }
   };
 
-  console.log('AuthProvider render - isLoading:', isLoading, 'user:', !!user, 'session:', !!session);
+  const logout = () => {
+    console.log('Logout executado');
+    setUser(null);
+    localStorage.removeItem('daviflow_current_user');
+  };
+
+  const createUser = async (userData: Omit<User, 'id'> & { password: string }): Promise<boolean> => {
+    if (!user || user.role !== 'admin') {
+      return false;
+    }
+
+    try {
+      // Verificar se email já existe
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', userData.email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        return false; // Email já existe
+      }
+
+      // Criar perfil usando apenas os campos obrigatórios
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .insert([{
+          name: userData.name,
+          email: userData.email.toLowerCase(),
+          role: userData.role
+        }])
+        .select()
+        .single();
+
+      if (profileError || !profile) {
+        console.error('Erro ao criar perfil:', profileError);
+        return false;
+      }
+
+      console.log('Usuário criado com sucesso:', profile);
+      return true;
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      return false;
+    }
+  };
+
+  const getAllUsers = async (): Promise<User[]> => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar usuários:', error);
+        return [];
+      }
+
+      return profiles.map(profile => ({
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as 'admin' | 'client'
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      return [];
+    }
+  };
+
+  const contextValue = {
+    user,
+    login,
+    logout,
+    isLoading,
+    createUser,
+    getAllUsers
+  };
 
   return (
-    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
