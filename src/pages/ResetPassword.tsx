@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +17,7 @@ const ResetPassword = () => {
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
@@ -26,14 +26,24 @@ const ResetPassword = () => {
         console.log('Current URL:', window.location.href);
         console.log('Hash:', window.location.hash);
         console.log('Pathname:', window.location.pathname);
+        console.log('Location search:', location.search);
         
-        // Parse hash parameters
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+        // First check if there are tokens in the URL hash
+        let hashParams = new URLSearchParams();
+        if (window.location.hash) {
+          // Remove the # and parse
+          hashParams = new URLSearchParams(window.location.hash.substring(1));
+        }
+        
+        // Also check URL search params as fallback
+        const searchParams = new URLSearchParams(location.search);
+        
+        // Get tokens from either hash or search params
+        const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+        const type = hashParams.get('type') || searchParams.get('type');
 
-        console.log('Hash params parsed:', { 
+        console.log('Extracted params:', { 
           accessToken: accessToken ? 'EXISTS' : 'MISSING', 
           refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
           type: type || 'MISSING'
@@ -42,42 +52,50 @@ const ResetPassword = () => {
         if (accessToken && type === 'recovery') {
           console.log('Valid recovery tokens found, setting session...');
           
-          // Set the session with the tokens from URL
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || ''
-          });
+          try {
+            // Set the session with the tokens from URL
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
 
-          if (error) {
-            console.error('Error setting session:', error);
-            setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
-          } else if (data.session) {
-            console.log('Session set successfully:', data.session.user?.email);
-            setIsValidSession(true);
-            
-            // Clean the URL hash to remove tokens
-            if (window.history.replaceState) {
-              window.history.replaceState(null, '', window.location.pathname);
+            if (error) {
+              console.error('Error setting session:', error);
+              setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
+            } else if (data.session) {
+              console.log('Session set successfully:', data.session.user?.email);
+              setIsValidSession(true);
+              
+              // Clean the URL to remove tokens for security
+              window.history.replaceState(null, '', '/reset-password');
+            } else {
+              console.error('No session returned from setSession');
+              setError("Erro ao configurar sessão de recuperação");
             }
-          } else {
-            console.error('No session returned from setSession');
-            setError("Erro ao configurar sessão de recuperação");
+          } catch (sessionError) {
+            console.error('Session error:', sessionError);
+            setError("Erro ao processar tokens de recuperação");
           }
         } else {
           console.log('No recovery tokens found in URL, checking existing session...');
           
           // Check if there's already a valid session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError) {
-            console.error('Error getting session:', sessionError);
-            setError("Erro ao verificar sessão");
-          } else if (session?.user) {
-            console.log('Found existing valid session');
-            setIsValidSession(true);
-          } else {
-            console.log('No valid session found');
-            setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link de recuperação.");
+          try {
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError) {
+              console.error('Error getting session:', sessionError);
+              setError("Erro ao verificar sessão");
+            } else if (session?.user) {
+              console.log('Found existing valid session for user:', session.user.email);
+              setIsValidSession(true);
+            } else {
+              console.log('No valid session found');
+              setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link de recuperação.");
+            }
+          } catch (sessionError) {
+            console.error('Session check error:', sessionError);
+            setError("Erro ao verificar sessão existente");
           }
         }
       } catch (error) {
@@ -88,11 +106,9 @@ const ResetPassword = () => {
       }
     };
 
-    // Add a small delay to ensure the component is fully mounted
-    const timer = setTimeout(handleAuthRedirect, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    // Run immediately without delay to process tokens quickly
+    handleAuthRedirect();
+  }, [location]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
