@@ -71,7 +71,7 @@ const Login = () => {
             name: name.trim(),
             invitation_token: inviteToken
           },
-          emailRedirectTo: `${window.location.origin}/`
+          emailRedirectTo: 'https://crm.ippax.com/'
         }
       });
 
@@ -119,10 +119,8 @@ const Login = () => {
     try {
       console.log('Enviando email de recuperação para:', email);
       
-      // Use o domínio personalizado se estiver disponível
-      const redirectUrl = window.location.hostname.includes('lovableproject.com') 
-        ? `${window.location.origin}/reset-password`
-        : 'https://crm.ippax.com/reset-password';
+      // Sempre usar o domínio personalizado
+      const redirectUrl = 'https://crm.ippax.com/reset-password';
       
       console.log('Redirect URL:', redirectUrl);
       
@@ -166,14 +164,14 @@ const Login = () => {
             <h1 className="text-xl font-bold text-slate-900">DaviFlow CRM</h1>
           </div>
           <CardTitle>
-            {showForgotPassword ? "Recuperar Senha" : showSignup ? "Criar Conta" : "Acesse sua conta"}
+            {showForgotPassword ? "Recuperar Senha" : showSignup ? "Criar Conta" : "Entrar na sua conta"}
           </CardTitle>
           <CardDescription>
             {showForgotPassword 
               ? "Digite seu email para receber instruções de recuperação"
               : showSignup 
                 ? "Use seu token de convite para criar uma conta" 
-                : "Faça login com suas credenciais"
+                : "Digite suas credenciais para acessar o sistema"
             }
           </CardDescription>
         </CardHeader>
@@ -372,11 +370,12 @@ const Login = () => {
           )}
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-sm mb-2">Sistema de Convites:</h3>
+            <h3 className="font-semibold text-sm mb-2">Contas de demonstração:</h3>
             <div className="text-xs space-y-1">
-              <p>• Apenas usuários convidados podem se cadastrar</p>
-              <p>• Novas contas precisam de aprovação do admin</p>
-              <p>• Contate o administrador para obter um convite</p>
+              <p><strong>Admin:</strong> admin@daviflow.com</p>
+              <p><strong>Cliente 1:</strong> joao@techcorp.com</p>
+              <p><strong>Cliente 2:</strong> maria@startupxyz.com</p>
+              <p><strong>Nota:</strong> Entre em contato com o administrador para obter credenciais</p>
             </div>
           </div>
         </CardContent>
