@@ -26,71 +26,54 @@ const ResetPassword = () => {
         console.log('=== RESET PASSWORD PAGE LOADED ===');
         console.log('Current URL:', window.location.href);
         console.log('Hash:', window.location.hash);
-        console.log('Search params:', window.location.search);
+        console.log('Pathname:', location.pathname);
         
-        // Check if we have tokens in the URL hash (Supabase callback)
+        // Extract tokens from URL hash if present
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
 
-        console.log('Hash tokens:', { 
+        console.log('Tokens found:', { 
           accessToken: accessToken ? 'EXISTS' : 'MISSING', 
           refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
           type: type || 'MISSING'
         });
 
         if (accessToken && type === 'recovery') {
-          console.log('Valid recovery tokens found in hash, setting session...');
+          console.log('Processing recovery tokens...');
           
-          try {
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || ''
-            });
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          });
 
-            if (error) {
-              console.error('Error setting session:', error);
-              setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
-            } else if (data.session) {
-              console.log('Session set successfully:', data.session.user?.email);
-              setIsValidSession(true);
-              
-              // Clean the URL after processing
-              window.history.replaceState(null, '', '/reset-password');
-            } else {
-              console.error('No session returned from setSession');
-              setError("Erro ao configurar sessão de recuperação");
-            }
-          } catch (sessionError) {
-            console.error('Session error:', sessionError);
-            setError("Erro ao processar tokens de recuperação");
+          if (error) {
+            console.error('Error setting session:', error);
+            setError("Link de recuperação inválido ou expirado.");
+          } else if (data.session) {
+            console.log('Recovery session established');
+            setIsValidSession(true);
+            // Clean URL after processing
+            window.history.replaceState(null, '', '/reset-password');
+          } else {
+            setError("Erro ao processar link de recuperação");
           }
         } else {
-          console.log('No valid tokens in hash, checking existing session...');
-          
           // Check if there's already a valid session
-          try {
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            
-            if (sessionError) {
-              console.error('Error getting session:', sessionError);
-              setError("Erro ao verificar sessão");
-            } else if (session?.user) {
-              console.log('Found existing valid session for user:', session.user.email);
-              setIsValidSession(true);
-            } else {
-              console.log('No valid session found');
-              setError("Para redefinir sua senha, use o link enviado por email ou solicite um novo através da página de login.");
-            }
-          } catch (sessionError) {
-            console.error('Session check error:', sessionError);
-            setError("Erro ao verificar sessão existente");
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            console.log('Found existing session');
+            setIsValidSession(true);
+          } else {
+            console.log('No valid session found');
+            setError("Link de recuperação necessário. Solicite um novo através da página de login.");
           }
         }
       } catch (error) {
-        console.error('Error in handleAuthRedirect:', error);
-        setError("Erro inesperado ao processar link de recuperação");
+        console.error('Error processing reset:', error);
+        setError("Erro ao processar recuperação de senha");
       } finally {
         setIsCheckingSession(false);
       }
@@ -124,7 +107,6 @@ const ResetPassword = () => {
     }
 
     try {
-      console.log('Updating password...');
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -132,14 +114,11 @@ const ResetPassword = () => {
       if (error) {
         console.error('Error updating password:', error);
         setError("Erro ao atualizar senha: " + error.message);
-        setIsLoading(false);
         return;
       }
 
-      console.log('Password updated successfully');
-      setSuccess("Senha atualizada com sucesso! Redirecionando para o login...");
+      setSuccess("Senha atualizada com sucesso! Redirecionando...");
       
-      // Clear the session and redirect to login
       setTimeout(async () => {
         await supabase.auth.signOut();
         navigate('/login');
@@ -158,7 +137,7 @@ const ResetPassword = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
         <div className="flex items-center space-x-2">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="text-lg font-medium">Verificando link de recuperação...</span>
+          <span className="text-lg font-medium">Verificando link...</span>
         </div>
       </div>
     );
@@ -177,8 +156,8 @@ const ResetPassword = () => {
           <CardTitle>Redefinir Senha</CardTitle>
           <CardDescription>
             {isValidSession 
-              ? "Digite sua nova senha para concluir a recuperação"
-              : "Verificando link de recuperação..."
+              ? "Digite sua nova senha" 
+              : "Acesso não autorizado"
             }
           </CardDescription>
         </CardHeader>
@@ -194,21 +173,19 @@ const ResetPassword = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo 6 caracteres"
                   required
-                  minLength={6}
                   disabled={isLoading}
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Digite a senha novamente"
+                  placeholder="Digite novamente"
                   required
-                  minLength={6}
                   disabled={isLoading}
                 />
               </div>
@@ -229,17 +206,6 @@ const ResetPassword = () => {
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? "Atualizando..." : "Atualizar Senha"}
               </Button>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => navigate('/login')}
-                  className="text-sm text-blue-600 hover:underline"
-                  disabled={isLoading}
-                >
-                  Voltar ao login
-                </button>
-              </div>
             </form>
           ) : (
             <div className="space-y-4">
@@ -249,19 +215,12 @@ const ResetPassword = () => {
                 </Alert>
               )}
               
-              <div className="text-center space-y-4">
-                <p className="text-sm text-gray-600">
-                  Se você chegou aqui sem usar um link de recuperação válido, 
-                  solicite um novo link através da página de login.
-                </p>
-                
-                <Button 
-                  onClick={() => navigate('/login')} 
-                  className="w-full"
-                >
-                  Ir para Login
-                </Button>
-              </div>
+              <Button 
+                onClick={() => navigate('/login')} 
+                className="w-full"
+              >
+                Ir para Login
+              </Button>
             </div>
           )}
         </CardContent>
