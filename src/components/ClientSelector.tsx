@@ -60,30 +60,24 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
 
   return (
     <div className="flex gap-2">
-      <Select value={value} onValueChange={onValueChange}>
+      <Select value={value} onValueChange={onValueChange} disabled={isLoading}>
         <SelectTrigger className="flex-1">
-          <SelectValue placeholder={placeholder}>
-            {selectedClient ? `${selectedClient.name} - ${selectedClient.company}` : placeholder}
+          <SelectValue placeholder={isLoading ? "Carregando..." : (clients.length === 0 ? "Nenhum cliente encontrado" : placeholder)}>
+            {selectedClient ? `${selectedClient.name} - ${selectedClient.company}` : (isLoading ? "Carregando..." : (clients.length === 0 ? "Nenhum cliente encontrado" : placeholder))}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {isLoading ? (
-            <SelectItem value="" disabled>Carregando...</SelectItem>
-          ) : clients.length === 0 ? (
-            <SelectItem value="" disabled>Nenhum cliente encontrado</SelectItem>
-          ) : (
-            clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name} - {client.company}
-              </SelectItem>
-            ))
-          )}
+          {clients.map((client) => (
+            <SelectItem key={client.id} value={client.id}>
+              {client.name} - {client.company}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" disabled={isLoading}>
             <Plus className="w-4 h-4" />
           </Button>
         </DialogTrigger>
