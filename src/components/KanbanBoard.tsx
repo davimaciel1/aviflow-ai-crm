@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,11 @@ import {
   Phone,
   Mail,
   MapPin,
-  FileText
+  FileText,
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -192,6 +197,9 @@ const KanbanBoard = () => {
   };
 
   const [stages, setStages] = useState<Stage[]>(getFilteredStages());
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [editingCard, setEditingCard] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', description: '' });
   const [newDealTitle, setNewDealTitle] = useState("");
   const [newDealDescription, setNewDealDescription] = useState("");
   const [newDealValue, setNewDealValue] = useState("");
@@ -203,6 +211,83 @@ const KanbanBoard = () => {
   useEffect(() => {
     setStages(getFilteredStages());
   }, [user]);
+
+  const handleDragEnd = (result: any) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const sourceStageIndex = stages.findIndex(stage => stage.id === source.droppableId);
+    const destStageIndex = stages.findIndex(stage => stage.id === destination.droppableId);
+    
+    const sourceStage = stages[sourceStageIndex];
+    const destStage = stages[destStageIndex];
+    
+    const draggedDeal = sourceStage.deals.find(deal => deal.id === draggableId);
+    
+    if (!draggedDeal) return;
+
+    const newStages = [...stages];
+    
+    // Remove from source
+    newStages[sourceStageIndex] = {
+      ...sourceStage,
+      deals: sourceStage.deals.filter(deal => deal.id !== draggableId)
+    };
+    
+    // Add to destination
+    const updatedDeal = { ...draggedDeal, stage: destination.droppableId };
+    const destDeals = [...destStage.deals];
+    destDeals.splice(destination.index, 0, updatedDeal);
+    
+    newStages[destStageIndex] = {
+      ...destStage,
+      deals: destDeals
+    };
+    
+    setStages(newStages);
+  };
+
+  const toggleCardExpand = (cardId: string) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(cardId)) {
+      newExpanded.delete(cardId);
+    } else {
+      newExpanded.add(cardId);
+    }
+    setExpandedCards(newExpanded);
+  };
+
+  const startEditing = (deal: Deal) => {
+    setEditingCard(deal.id);
+    setEditForm({ title: deal.title, description: deal.description || '' });
+  };
+
+  const saveEdit = (dealId: string) => {
+    setStages(prevStages =>
+      prevStages.map(stage => ({
+        ...stage,
+        deals: stage.deals.map(deal =>
+          deal.id === dealId
+            ? { ...deal, title: editForm.title, description: editForm.description }
+            : deal
+        )
+      }))
+    );
+    setEditingCard(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingCard(null);
+    setEditForm({ title: '', description: '' });
+  };
 
   const handleAddDeal = () => {
     if (!newDealTitle.trim() || !selectedStageId) return;
@@ -392,201 +477,178 @@ const KanbanBoard = () => {
         </div>
       )}
 
-      {/* Kanban Board */}
-      <div className="flex space-x-6 overflow-x-auto pb-6">
-        {stages.map((stage) => (
-          <div key={stage.id} className="flex-shrink-0 w-80">
-            <div className="bg-slate-50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-900">{stage.title}</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {stage.deals.length}
-                </Badge>
-              </div>
-              
-              <div className="space-y-3">
-                {stage.deals.map((deal) => (
-                  <Dialog key={deal.id}>
-                    <DialogTrigger asChild>
-                      <Card className="cursor-pointer hover:shadow-md transition-shadow bg-white">
-                        <CardContent className="p-4">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <h4 className="font-medium text-slate-900 line-clamp-2">
-                                {deal.title}
-                              </h4>
-                              <Badge className={`text-xs ${getPriorityColor(deal.priority)}`}>
-                                {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                              </Badge>
-                            </div>
-                            
-                            {deal.description && (
-                              <p className="text-sm text-slate-600 line-clamp-2">
-                                {deal.description}
-                              </p>
-                            )}
-                            
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2">
-                                <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="text-sm font-medium text-green-600">
-                                  {formatCurrency(deal.value)}
-                                </span>
-                              </div>
-                              
-                              {deal.client && (
-                                <div className="flex items-center space-x-1">
-                                  <Avatar className="w-6 h-6">
-                                    <AvatarFallback className="text-xs">
-                                      {deal.client.name.split(' ').map(n => n[0]).join('')}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </DialogTrigger>
-                    
-                    {/* Deal Details Modal */}
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle className="text-xl">{deal.title}</DialogTitle>
-                      </DialogHeader>
-                      
-                      <Tabs defaultValue="details" className="space-y-4">
-                        <TabsList>
-                          <TabsTrigger value="details">Detalhes</TabsTrigger>
-                          <TabsTrigger value="client">Cliente</TabsTrigger>
-                          <TabsTrigger value="notes">Notas</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="details" className="space-y-4">
-                          <div className="grid grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <div>
-                                <Label className="text-sm font-medium text-slate-700">Descrição</Label>
-                                <p className="text-slate-600 mt-1">
-                                  {deal.description || 'Nenhuma descrição fornecida'}
-                                </p>
-                              </div>
-                              
-                              <div>
-                                <Label className="text-sm font-medium text-slate-700">Valor</Label>
-                                <p className="text-lg font-semibold text-green-600 mt-1">
-                                  {formatCurrency(deal.value)}
-                                </p>
-                              </div>
-                              
-                              <div>
-                                <Label className="text-sm font-medium text-slate-700">Prioridade</Label>
-                                <Badge className={`mt-1 ${getPriorityColor(deal.priority)}`}>
-                                  {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
-                                </Badge>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-4">
-                              <div>
-                                <Label className="text-sm font-medium text-slate-700">Data de Criação</Label>
-                                <p className="text-slate-600 mt-1">
-                                  {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
-                                </p>
-                              </div>
-                              
-                              {deal.contact && (
-                                <div>
-                                  <Label className="text-sm font-medium text-slate-700">Contato</Label>
-                                  <p className="text-slate-600 mt-1">{deal.contact}</p>
-                                </div>
-                              )}
-                              
-                              {deal.confidential && !isClientView && (
-                                <div>
-                                  <Label className="text-sm font-medium text-slate-700">Informações Confidenciais</Label>
-                                  <p className="text-slate-600 mt-1 italic">{deal.confidential}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </TabsContent>
-                        
-                        <TabsContent value="client" className="space-y-4">
-                          {deal.client ? (
-                            <div className="bg-slate-50 rounded-lg p-6">
-                              <div className="flex items-start space-x-4">
-                                <Avatar className="w-16 h-16">
-                                  <AvatarFallback className="text-lg">
-                                    {deal.client.name.split(' ').map(n => n[0]).join('')}
-                                  </AvatarFallback>
-                                </Avatar>
-                                
-                                <div className="flex-1 space-y-3">
-                                  <div>
-                                    <h3 className="text-lg font-semibold text-slate-900">{deal.client.name}</h3>
-                                    <p className="text-slate-600">{deal.client.company}</p>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex items-center space-x-2">
-                                      <Mail className="w-4 h-4 text-slate-400" />
-                                      <span className="text-sm text-slate-600">{deal.client.email}</span>
+      {/* Kanban Board with Drag and Drop */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex space-x-6 overflow-x-auto pb-6">
+          {stages.map((stage) => (
+            <div key={stage.id} className="flex-shrink-0 w-80">
+              <div className="bg-slate-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-slate-900">{stage.title}</h3>
+                  <Badge variant="secondary" className="text-xs">
+                    {stage.deals.length}
+                  </Badge>
+                </div>
+                
+                <Droppable droppableId={stage.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`space-y-3 min-h-[200px] ${
+                        snapshot.isDraggingOver ? 'bg-blue-50 rounded-lg p-2' : ''
+                      }`}
+                    >
+                      {stage.deals.map((deal, index) => (
+                        <Draggable key={deal.id} draggableId={deal.id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={`${snapshot.isDragging ? 'rotate-2 shadow-lg' : ''}`}
+                            >
+                              <Card className="cursor-grab hover:shadow-md transition-shadow bg-white">
+                                <CardContent className="p-4">
+                                  <div className="space-y-3">
+                                    {/* Header with expand/collapse button */}
+                                    <div className="flex items-start justify-between">
+                                      {editingCard === deal.id ? (
+                                        <div className="flex-1 space-y-2">
+                                          <Input
+                                            value={editForm.title}
+                                            onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                                            className="text-sm font-medium"
+                                          />
+                                          <Textarea
+                                            value={editForm.description}
+                                            onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                                            className="text-xs"
+                                            rows={2}
+                                          />
+                                          <div className="flex space-x-1">
+                                            <Button size="sm" onClick={() => saveEdit(deal.id)}>
+                                              <Check className="w-3 h-3" />
+                                            </Button>
+                                            <Button size="sm" variant="outline" onClick={cancelEdit}>
+                                              <X className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <div className="flex-1">
+                                            <h4 className="font-medium text-slate-900 line-clamp-2 text-sm">
+                                              {deal.title}
+                                            </h4>
+                                            {deal.client && (
+                                              <p className="text-xs text-slate-500 mt-1">
+                                                {deal.client.company}
+                                              </p>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center space-x-1">
+                                            {!isClientView && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => startEditing(deal)}
+                                                className="h-6 w-6 p-0"
+                                              >
+                                                <Edit className="w-3 h-3" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => toggleCardExpand(deal.id)}
+                                              className="h-6 w-6 p-0"
+                                            >
+                                              {expandedCards.has(deal.id) ? (
+                                                <ChevronUp className="w-3 h-3" />
+                                              ) : (
+                                                <ChevronDown className="w-3 h-3" />
+                                              )}
+                                            </Button>
+                                          </div>
+                                        </>
+                                      )}
                                     </div>
                                     
-                                    {deal.client.phone && (
-                                      <div className="flex items-center space-x-2">
-                                        <Phone className="w-4 h-4 text-slate-400" />
-                                        <span className="text-sm text-slate-600">{deal.client.phone}</span>
+                                    {/* Priority badge */}
+                                    <div className="flex items-center justify-between">
+                                      <Badge className={`text-xs ${getPriorityColor(deal.priority)}`}>
+                                        {deal.priority === 'high' ? 'Alta' : deal.priority === 'medium' ? 'Média' : 'Baixa'}
+                                      </Badge>
+                                      
+                                      {deal.client && (
+                                        <Avatar className="w-6 h-6">
+                                          <AvatarFallback className="text-xs">
+                                            {deal.client.name.split(' ').map(n => n[0]).join('')}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      )}
+                                    </div>
+
+                                    {/* Expanded content */}
+                                    {expandedCards.has(deal.id) && (
+                                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                                        {deal.description && (
+                                          <p className="text-xs text-slate-600">
+                                            {deal.description}
+                                          </p>
+                                        )}
+                                        
+                                        {deal.contact && (
+                                          <div className="flex items-center space-x-2">
+                                            <User className="w-3 h-3 text-slate-400" />
+                                            <span className="text-xs text-slate-600">{deal.contact}</span>
+                                          </div>
+                                        )}
+                                        
+                                        <div className="flex items-center space-x-2">
+                                          <Calendar className="w-3 h-3 text-slate-400" />
+                                          <span className="text-xs text-slate-600">
+                                            {new Date(deal.createdAt).toLocaleDateString('pt-BR')}
+                                          </span>
+                                        </div>
+
+                                        {deal.client && (
+                                          <div className="space-y-1">
+                                            <div className="flex items-center space-x-2">
+                                              <Building2 className="w-3 h-3 text-slate-400" />
+                                              <span className="text-xs text-slate-600">{deal.client.company}</span>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                              <Mail className="w-3 h-3 text-slate-400" />
+                                              <span className="text-xs text-slate-600">{deal.client.email}</span>
+                                            </div>
+                                            {deal.client.phone && (
+                                              <div className="flex items-center space-x-2">
+                                                <Phone className="w-3 h-3 text-slate-400" />
+                                                <span className="text-xs text-slate-600">{deal.client.phone}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
-                                    
-                                    <div className="flex items-center space-x-2">
-                                      <Building2 className="w-4 h-4 text-slate-400" />
-                                      <span className="text-sm text-slate-600">{deal.client.company}</span>
-                                    </div>
-                                    
-                                    <div className="flex items-center space-x-2">
-                                      <User className="w-4 h-4 text-slate-400" />
-                                      <Badge variant="outline" className="text-xs">
-                                        {deal.client.status === 'prospect' ? 'Prospect' :
-                                         deal.client.status === 'qualified' ? 'Qualificado' :
-                                         deal.client.status === 'client' ? 'Cliente' : 'Inativo'}
-                                      </Badge>
-                                    </div>
                                   </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-slate-500">
-                              <User className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                              <p>Nenhum cliente associado a este deal</p>
+                                </CardContent>
+                              </Card>
                             </div>
                           )}
-                        </TabsContent>
-                        
-                        <TabsContent value="notes" className="space-y-4">
-                          <div className="text-center py-8 text-slate-500">
-                            <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                            <p>Nenhuma nota adicionada ainda</p>
-                            {!isClientView && (
-                              <Button variant="outline" className="mt-4">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Adicionar Nota
-                              </Button>
-                            )}
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                    </DialogContent>
-                  </Dialog>
-                ))}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </DragDropContext>
     </div>
   );
 };
