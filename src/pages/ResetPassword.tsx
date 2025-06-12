@@ -38,12 +38,12 @@ const ResetPassword = () => {
           type 
         });
 
-        if (accessToken && refreshToken && type === 'recovery') {
+        if (accessToken && type === 'recovery') {
           console.log('Setting session with tokens from URL...');
           
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
-            refresh_token: refreshToken
+            refresh_token: refreshToken || ''
           });
 
           if (error) {
