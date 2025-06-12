@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -63,6 +64,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simular delay de API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // Para simplicidade inicial, vamos verificar usuários hardcoded primeiro
+      const hardcodedUsers: Record<string, { password: string; user: User }> = {
+        'davi@ippax.com': {
+          password: 'admin123',
+          user: {
+            id: 'admin-hardcoded-id',
+            name: 'Davi Admin',
+            email: 'davi@ippax.com',
+            role: 'admin'
+          }
+        }
+      };
+
+      const hardcodedUser = hardcodedUsers[email.toLowerCase()];
+      if (hardcodedUser && hardcodedUser.password === password) {
+        console.log('Login - Usuário hardcoded encontrado:', hardcodedUser.user);
+        setUser(hardcodedUser.user);
+        localStorage.setItem('daviflow_current_user', JSON.stringify(hardcodedUser.user));
+        setIsLoading(false);
+        return true;
+      }
+
       console.log('Login - Buscando usuário no banco:', email.toLowerCase());
       
       // Buscar usuário no Supabase profiles
@@ -80,12 +103,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // Para simplicidade inicial, vamos usar senhas hardcoded
-      const validPasswords: Record<string, string> = {
-        'davi@ippax.com': 'admin123'
+      // Para usuários do banco, usar senhas padrão baseadas no role
+      const defaultPasswords: Record<string, string> = {
+        'admin': 'admin123',
+        'client': 'client123'
       };
 
-      if (validPasswords[email.toLowerCase()] !== password) {
+      const expectedPassword = defaultPasswords[profile.role] || 'client123';
+      if (expectedPassword !== password) {
         console.log('Login - Senha inválida para:', email);
         setIsLoading(false);
         return false;
@@ -133,14 +158,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false; // Email já existe
       }
 
-      // Criar perfil - o banco vai gerar o ID automaticamente
+      // Criar perfil usando apenas os campos obrigatórios
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .insert([{
           name: userData.name,
           email: userData.email.toLowerCase(),
           role: userData.role
-        })
+        }])
         .select()
         .single();
 

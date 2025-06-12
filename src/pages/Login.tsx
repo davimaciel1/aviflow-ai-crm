@@ -85,9 +85,12 @@ const Login = () => {
           </form>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-sm mb-2">Administrador do Sistema:</h3>
+            <h3 className="font-semibold text-sm mb-2">Credenciais de Acesso:</h3>
             <div className="text-xs space-y-1">
               <p><strong>Admin:</strong> davi@ippax.com / admin123</p>
+              <p><strong>Usuários do banco:</strong> senha baseada no role</p>
+              <p className="text-muted-foreground">• Admins: admin123</p>
+              <p className="text-muted-foreground">• Clientes: client123</p>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               * O admin pode criar outros usuários após fazer login
