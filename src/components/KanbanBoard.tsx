@@ -410,11 +410,17 @@ const KanbanBoard = () => {
                         <SelectValue placeholder="Selecione o cliente" />
                       </SelectTrigger>
                       <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name} - {client.company}
-                          </SelectItem>
-                        ))}
+                        {clients.length > 0 ? (
+                          clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name} - {client.company}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-2 text-xs text-muted-foreground">
+                            Nenhum cliente disponível
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -547,9 +553,9 @@ const KanbanBoard = () => {
                                                     </SelectItem>
                                                   ))
                                                 ) : (
-                                                  <SelectItem value="" disabled>
+                                                  <div className="px-2 py-2 text-xs text-muted-foreground">
                                                     Nenhum cliente disponível
-                                                  </SelectItem>
+                                                  </div>
                                                 )}
                                               </SelectContent>
                                             </Select>
