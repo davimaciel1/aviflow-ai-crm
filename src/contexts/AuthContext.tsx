@@ -14,6 +14,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  createUser: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
+  getAllUsers: () => User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,45 +28,23 @@ export const useAuth = () => {
   return context;
 };
 
-// Mock users database with hashed password references
-const mockUsers: (User & { passwordHash: string })[] = [
-  {
-    id: '1',
-    name: 'Davi Admin',
-    email: 'davi@ippax.com',
-    role: 'admin',
-    passwordHash: 'admin123' // Senha simples para teste
-  },
-  {
-    id: '2',
-    name: 'João Silva',
-    email: 'joao@techcorp.com',
-    role: 'client',
-    clientId: 'techcorp',
-    passwordHash: '123456'
-  },
-  {
-    id: '3',
-    name: 'Maria Santos',
-    email: 'maria@startupxyz.com',
-    role: 'client',
-    clientId: 'startupxyz',
-    passwordHash: '123456'
-  },
-  {
-    id: '4',
-    name: 'Pedro Oliveira',
-    email: 'pedro@abccorp.com',
-    role: 'client',
-    clientId: 'abccorp',
-    passwordHash: '123456'
-  }
-];
+// Admin único do sistema
+const ADMIN_USER = {
+  id: '1',
+  name: 'Davi Admin',
+  email: 'davi@ippax.com',
+  role: 'admin' as const,
+  passwordHash: 'admin123'
+};
 
-// Simple password validation function
-const validatePassword = (inputPassword: string, storedHash: string): boolean => {
-  console.log('validatePassword - input:', inputPassword, 'stored:', storedHash);
-  return inputPassword === storedHash;
+// Usuários criados pelo admin (salvos no localStorage)
+const getStoredUsers = () => {
+  const stored = localStorage.getItem('daviflow_users');
+  return stored ? JSON.parse(stored) : [];
+};
+
+const saveUsers = (users: any[]) => {
+  localStorage.setItem('daviflow_users', JSON.stringify(users));
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -72,102 +52,125 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthProvider - useEffect iniciado');
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem('daviflow_user');
-    console.log('AuthProvider - savedUser from localStorage:', savedUser);
+    console.log('AuthProvider - Verificando usuário salvo');
+    const savedUser = localStorage.getItem('daviflow_current_user');
     
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        console.log('AuthProvider - parsedUser:', parsedUser);
-        
-        // Validate the saved user data
-        if (parsedUser && parsedUser.id && parsedUser.email) {
-          console.log('AuthProvider - Setting user from localStorage:', parsedUser);
-          setUser(parsedUser);
-        } else {
-          console.log('AuthProvider - Invalid saved user data, removing from localStorage');
-          localStorage.removeItem('daviflow_user');
-        }
+        console.log('AuthProvider - Usuário encontrado:', parsedUser);
+        setUser(parsedUser);
       } catch (error) {
-        console.error('AuthProvider - Error parsing saved user data:', error);
-        localStorage.removeItem('daviflow_user');
+        console.error('AuthProvider - Erro ao analisar usuário salvo:', error);
+        localStorage.removeItem('daviflow_current_user');
       }
-    } else {
-      console.log('AuthProvider - No saved user in localStorage');
     }
     
     setIsLoading(false);
-    console.log('AuthProvider - useEffect finalizado, isLoading set to false');
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    console.log('login - iniciado com email:', email, 'password:', password);
+    console.log('Login - Tentativa com:', email);
     setIsLoading(true);
     
-    // Input validation
     if (!email || !password) {
-      console.log('login - Email ou senha vazio');
       setIsLoading(false);
       return false;
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.log('login - Formato de email inválido');
-      setIsLoading(false);
-      return false;
-    }
-    
-    console.log('login - Procurando usuário...');
-    console.log('login - Usuários disponíveis:', mockUsers.map(u => ({ email: u.email, password: u.passwordHash })));
-    
-    // Simulate API call
+    // Simular delay de API
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Find user and validate password
-    const foundUser = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    console.log('login - Usuário encontrado:', foundUser);
-    
-    if (foundUser) {
-      console.log('login - Validando senha...');
-      const isPasswordValid = validatePassword(password, foundUser.passwordHash);
-      console.log('login - Senha válida:', isPasswordValid);
-      
-      if (isPasswordValid) {
-        const { passwordHash, ...userWithoutPassword } = foundUser;
-        console.log('login - Login bem-sucedido, setando usuário:', userWithoutPassword);
-        setUser(userWithoutPassword);
-        localStorage.setItem('daviflow_user', JSON.stringify(userWithoutPassword));
-        setIsLoading(false);
-        return true;
-      } else {
-        console.log('login - Senha incorreta');
-      }
-    } else {
-      console.log('login - Usuário não encontrado');
+    // Verificar se é o admin
+    if (email.toLowerCase() === ADMIN_USER.email.toLowerCase() && password === ADMIN_USER.passwordHash) {
+      const { passwordHash, ...userWithoutPassword } = ADMIN_USER;
+      console.log('Login - Admin logado com sucesso');
+      setUser(userWithoutPassword);
+      localStorage.setItem('daviflow_current_user', JSON.stringify(userWithoutPassword));
+      setIsLoading(false);
+      return true;
     }
     
+    // Verificar usuários criados pelo admin
+    const storedUsers = getStoredUsers();
+    const foundUser = storedUsers.find((u: any) => 
+      u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password
+    );
+    
+    if (foundUser) {
+      const { passwordHash, ...userWithoutPassword } = foundUser;
+      console.log('Login - Usuário logado com sucesso:', userWithoutPassword);
+      setUser(userWithoutPassword);
+      localStorage.setItem('daviflow_current_user', JSON.stringify(userWithoutPassword));
+      setIsLoading(false);
+      return true;
+    }
+    
+    console.log('Login - Credenciais inválidas');
     setIsLoading(false);
     return false;
   };
 
   const logout = () => {
-    console.log('logout - executado');
+    console.log('Logout executado');
     setUser(null);
-    localStorage.removeItem('daviflow_user');
+    localStorage.removeItem('daviflow_current_user');
+  };
+
+  const createUser = async (userData: Omit<User, 'id'> & { password: string }): Promise<boolean> => {
+    if (!user || user.role !== 'admin') {
+      return false;
+    }
+
+    const storedUsers = getStoredUsers();
+    
+    // Verificar se email já existe
+    const emailExists = storedUsers.some((u: any) => u.email.toLowerCase() === userData.email.toLowerCase()) ||
+                      userData.email.toLowerCase() === ADMIN_USER.email.toLowerCase();
+    
+    if (emailExists) {
+      return false;
+    }
+
+    const newUser = {
+      id: Date.now().toString(),
+      name: userData.name,
+      email: userData.email,
+      role: userData.role,
+      clientId: userData.clientId,
+      passwordHash: userData.password // Em produção, use hash real
+    };
+
+    const updatedUsers = [...storedUsers, newUser];
+    saveUsers(updatedUsers);
+    
+    return true;
+  };
+
+  const getAllUsers = (): User[] => {
+    const storedUsers = getStoredUsers();
+    const { passwordHash, ...adminWithoutPassword } = ADMIN_USER;
+    
+    return [
+      adminWithoutPassword,
+      ...storedUsers.map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        clientId: u.clientId
+      }))
+    ];
   };
 
   const contextValue = {
     user,
     login,
     logout,
-    isLoading
+    isLoading,
+    createUser,
+    getAllUsers
   };
-
-  console.log('AuthProvider - renderizando com contextValue:', contextValue);
 
   return (
     <AuthContext.Provider value={contextValue}>

@@ -14,28 +14,19 @@ const Login = () => {
   const [error, setError] = useState("");
   const { login, isLoading } = useAuth();
 
-  console.log('Login - componente renderizado, isLoading:', isLoading);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login - handleSubmit iniciado');
     setError("");
 
-    // Basic input validation
     if (!email || !password) {
       setError("Por favor, preencha todos os campos");
       return;
     }
 
-    console.log('Login - Tentando fazer login com:', email, password);
     const success = await login(email, password);
-    console.log('Login - Resultado do login:', success);
     
     if (!success) {
       setError("Email ou senha inválidos");
-    } else {
-      console.log('Login - Login bem-sucedido!');
-      // O redirecionamento será feito pelo ProtectedRoute
     }
   };
 
@@ -94,13 +85,13 @@ const Login = () => {
           </form>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-sm mb-2">Contas de demonstração:</h3>
+            <h3 className="font-semibold text-sm mb-2">Administrador do Sistema:</h3>
             <div className="text-xs space-y-1">
               <p><strong>Admin:</strong> davi@ippax.com / admin123</p>
-              <p><strong>Cliente 1:</strong> joao@techcorp.com / 123456</p>
-              <p><strong>Cliente 2:</strong> maria@startupxyz.com / 123456</p>
-              <p><strong>Cliente 3:</strong> pedro@abccorp.com / 123456</p>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              * O admin pode criar outros usuários após fazer login
+            </p>
           </div>
         </CardContent>
       </Card>
