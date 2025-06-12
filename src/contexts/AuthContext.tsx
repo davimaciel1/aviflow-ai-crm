@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false; // Email já existe
       }
 
-      // Criar perfil
+      // Criar perfil - removendo o id para deixar o banco gerar automaticamente
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .insert({
