@@ -24,14 +24,22 @@ export const useClients = () => {
       console.log('Loading clients from Supabase...');
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        // First, let's check the current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        console.log('Current user:', user);
+        console.log('User error:', userError);
+
+        // Then try to fetch clients
+        const { data, error, count } = await supabase
           .from('clients')
-          .select('*');
+          .select('*', { count: 'exact' });
         
-        console.log('Supabase response:', { data, error });
+        console.log('Supabase clients response:', { data, error, count });
+        console.log('Number of clients found:', data?.length || 0);
         
         if (error) {
           console.error('Error loading clients:', error);
+          console.error('Error details:', error.message, error.code);
           setClients([]);
         } else {
           // Type assertion to ensure status field matches our enum
