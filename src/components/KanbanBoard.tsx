@@ -536,15 +536,21 @@ const KanbanBoard = () => {
                                                 })
                                               }
                                             >
-                                              <SelectTrigger className="text-xs">
+                                              <SelectTrigger className="text-xs bg-background border border-input">
                                                 <SelectValue placeholder="Selecione o cliente" />
                                               </SelectTrigger>
-                                              <SelectContent>
-                                                {clients.map((client) => (
-                                                  <SelectItem key={client.id} value={client.id}>
-                                                    {client.name} - {client.company}
+                                              <SelectContent className="bg-background border border-input z-50">
+                                                {clients.length > 0 ? (
+                                                  clients.map((client) => (
+                                                    <SelectItem key={client.id} value={client.id}>
+                                                      {client.name} - {client.company}
+                                                    </SelectItem>
+                                                  ))
+                                                ) : (
+                                                  <SelectItem value="" disabled>
+                                                    Nenhum cliente disponível
                                                   </SelectItem>
-                                                ))}
+                                                )}
                                               </SelectContent>
                                             </Select>
                                             <div className="flex space-x-1">
