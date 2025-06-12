@@ -20,7 +20,7 @@ interface User {
 }
 
 const UserManagement = () => {
-  const { user, createUser } = useAuth();
+  const { user, createUser, getAllUsers } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -50,8 +50,6 @@ const UserManagement = () => {
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      // Como getAllUsers agora é async, vamos usar useAuth de forma diferente
-      const { getAllUsers } = useAuth();
       const allUsers = await getAllUsers();
       setUsers(allUsers);
     } catch (error) {
