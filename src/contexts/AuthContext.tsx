@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (!mounted) return;
 
@@ -129,14 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     getInitialSession();
 
-    // Fallback: if nothing happens within 5 seconds, stop loading
+    // Fallback: if nothing happens within 3 seconds, stop loading
     const fallbackTimer = setTimeout(() => {
       if (mounted && !sessionInitialized) {
-        console.log('Fallback: Stopping loading after 5 seconds');
+        console.log('Fallback: Stopping loading after 3 seconds');
         sessionInitialized = true;
         setIsLoading(false);
       }
-    }, 5000);
+    }, 3000);
 
     return () => {
       console.log('AuthProvider: Cleaning up');
