@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ const ResetPassword = () => {
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
@@ -25,62 +26,48 @@ const ResetPassword = () => {
         console.log('=== RESET PASSWORD PAGE LOADED ===');
         console.log('Current URL:', window.location.href);
         console.log('Hash:', window.location.hash);
-        console.log('Pathname:', window.location.pathname);
+        console.log('Search params:', window.location.search);
         
-        // First check if there's a stored hash from our redirect handler
-        const storedHash = sessionStorage.getItem('supabase_auth_hash');
-        console.log('Stored hash from sessionStorage:', storedHash);
-        
-        let hashToProcess = window.location.hash || storedHash || '';
-        
-        // Clean up sessionStorage after getting the hash
-        if (storedHash) {
-          sessionStorage.removeItem('supabase_auth_hash');
-        }
-        
-        if (hashToProcess) {
-          // Extract tokens from hash
-          const hashParams = new URLSearchParams(hashToProcess.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          const type = hashParams.get('type');
+        // Check if we have tokens in the URL hash (Supabase callback)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
 
-          console.log('Extracted params:', { 
-            accessToken: accessToken ? 'EXISTS' : 'MISSING', 
-            refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
-            type: type || 'MISSING'
-          });
+        console.log('Hash tokens:', { 
+          accessToken: accessToken ? 'EXISTS' : 'MISSING', 
+          refreshToken: refreshToken ? 'EXISTS' : 'MISSING', 
+          type: type || 'MISSING'
+        });
 
-          if (accessToken && type === 'recovery') {
-            console.log('Valid recovery tokens found, setting session...');
-            
-            try {
-              // Set the session with the tokens from URL
-              const { data, error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken || ''
-              });
+        if (accessToken && type === 'recovery') {
+          console.log('Valid recovery tokens found in hash, setting session...');
+          
+          try {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
 
-              if (error) {
-                console.error('Error setting session:', error);
-                setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
-              } else if (data.session) {
-                console.log('Session set successfully:', data.session.user?.email);
-                setIsValidSession(true);
-              } else {
-                console.error('No session returned from setSession');
-                setError("Erro ao configurar sessão de recuperação");
-              }
-            } catch (sessionError) {
-              console.error('Session error:', sessionError);
-              setError("Erro ao processar tokens de recuperação");
+            if (error) {
+              console.error('Error setting session:', error);
+              setError("Link de recuperação inválido ou expirado. Tente solicitar um novo.");
+            } else if (data.session) {
+              console.log('Session set successfully:', data.session.user?.email);
+              setIsValidSession(true);
+              
+              // Clean the URL after processing
+              window.history.replaceState(null, '', '/reset-password');
+            } else {
+              console.error('No session returned from setSession');
+              setError("Erro ao configurar sessão de recuperação");
             }
-          } else {
-            console.log('Invalid or missing recovery tokens');
-            setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link de recuperação.");
+          } catch (sessionError) {
+            console.error('Session error:', sessionError);
+            setError("Erro ao processar tokens de recuperação");
           }
         } else {
-          console.log('No hash found, checking existing session...');
+          console.log('No valid tokens in hash, checking existing session...');
           
           // Check if there's already a valid session
           try {
@@ -94,7 +81,7 @@ const ResetPassword = () => {
               setIsValidSession(true);
             } else {
               console.log('No valid session found');
-              setError("Link de recuperação inválido ou expirado. Por favor, solicite um novo link de recuperação.");
+              setError("Para redefinir sua senha, use o link enviado por email ou solicite um novo através da página de login.");
             }
           } catch (sessionError) {
             console.error('Session check error:', sessionError);
@@ -110,7 +97,7 @@ const ResetPassword = () => {
     };
 
     handleAuthRedirect();
-  }, []);
+  }, [location]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
