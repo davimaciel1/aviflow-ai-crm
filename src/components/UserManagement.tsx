@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,20 +10,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Plus, Shield, User, Mail, Building2 } from "lucide-react";
+import { Users, Plus, Shield, User, Mail } from "lucide-react";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'client';
+}
 
 const UserManagement = () => {
-  const { user, createUser, getAllUsers } = useAuth();
+  const { user, createUser } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'client' as 'admin' | 'client',
-    clientId: ''
+    role: 'client' as 'admin' | 'client'
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Só admin pode acessar
   if (!user || user.role !== 'admin') {
@@ -39,7 +47,22 @@ const UserManagement = () => {
     );
   }
 
-  const allUsers = getAllUsers();
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      // Como getAllUsers agora é async, vamos usar useAuth de forma diferente
+      const { getAllUsers } = useAuth();
+      const allUsers = await getAllUsers();
+      setUsers(allUsers);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,9 +93,9 @@ const UserManagement = () => {
         name: '',
         email: '',
         password: '',
-        role: 'client',
-        clientId: ''
+        role: 'client'
       });
+      loadUsers(); // Recarregar lista de usuários
       setTimeout(() => {
         setIsDialogOpen(false);
         setSuccess('');
@@ -164,18 +187,6 @@ const UserManagement = () => {
                 </Select>
               </div>
               
-              {formData.role === 'client' && (
-                <div>
-                  <Label htmlFor="clientId">ID do Cliente (opcional)</Label>
-                  <Input
-                    id="clientId"
-                    value={formData.clientId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, clientId: e.target.value }))}
-                    placeholder="ID único do cliente"
-                  />
-                </div>
-              )}
-              
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
@@ -201,47 +212,50 @@ const UserManagement = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {allUsers.map((userData) => (
-          <Card key={userData.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback className="bg-blue-100 text-blue-600">
-                      {userData.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-base">{userData.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      {userData.email}
-                    </p>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-muted-foreground">Carregando usuários...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.map((userData) => (
+            <Card key={userData.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback className="bg-blue-100 text-blue-600">
+                        {userData.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-base">{userData.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {userData.email}
+                      </p>
+                    </div>
                   </div>
+                  <Badge className={getRoleColor(userData.role)}>
+                    {getRoleLabel(userData.role)}
+                  </Badge>
                 </div>
-                <Badge className={getRoleColor(userData.role)}>
-                  {getRoleLabel(userData.role)}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <User className="w-4 h-4" />
-                  <span>ID: {userData.id}</span>
-                </div>
-                {userData.clientId && (
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Building2 className="w-4 h-4" />
-                    <span>Cliente: {userData.clientId}</span>
+                    <User className="w-4 h-4" />
+                    <span>ID: {userData.id}</span>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

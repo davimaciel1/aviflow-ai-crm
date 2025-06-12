@@ -1,12 +1,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'client';
-  clientId?: string;
 }
 
 interface AuthContextType {
@@ -15,7 +15,7 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   createUser: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
-  getAllUsers: () => User[];
+  getAllUsers: () => Promise<User[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,25 +26,6 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-// Admin único do sistema
-const ADMIN_USER = {
-  id: '1',
-  name: 'Davi Admin',
-  email: 'davi@ippax.com',
-  role: 'admin' as const,
-  passwordHash: 'admin123'
-};
-
-// Usuários criados pelo admin (salvos no localStorage)
-const getStoredUsers = () => {
-  const stored = localStorage.getItem('daviflow_users');
-  return stored ? JSON.parse(stored) : [];
-};
-
-const saveUsers = (users: any[]) => {
-  localStorage.setItem('daviflow_users', JSON.stringify(users));
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -78,37 +59,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    // Simular delay de API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Verificar se é o admin
-    if (email.toLowerCase() === ADMIN_USER.email.toLowerCase() && password === ADMIN_USER.passwordHash) {
-      const { passwordHash, ...userWithoutPassword } = ADMIN_USER;
-      console.log('Login - Admin logado com sucesso');
-      setUser(userWithoutPassword);
-      localStorage.setItem('daviflow_current_user', JSON.stringify(userWithoutPassword));
+    try {
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Buscar usuário no Supabase
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (profileError || !profiles) {
+        console.log('Login - Usuário não encontrado');
+        setIsLoading(false);
+        return false;
+      }
+
+      // Verificar senha no user_auth
+      const { data: authData, error: authError } = await supabase
+        .from('user_auth')
+        .select('password_hash')
+        .eq('profile_id', profiles.id)
+        .single();
+
+      if (authError || !authData || authData.password_hash !== password) {
+        console.log('Login - Senha inválida');
+        setIsLoading(false);
+        return false;
+      }
+
+      const loggedUser: User = {
+        id: profiles.id,
+        name: profiles.name,
+        email: profiles.email,
+        role: profiles.role as 'admin' | 'client'
+      };
+
+      console.log('Login - Usuário logado com sucesso:', loggedUser);
+      setUser(loggedUser);
+      localStorage.setItem('daviflow_current_user', JSON.stringify(loggedUser));
       setIsLoading(false);
       return true;
-    }
-    
-    // Verificar usuários criados pelo admin
-    const storedUsers = getStoredUsers();
-    const foundUser = storedUsers.find((u: any) => 
-      u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password
-    );
-    
-    if (foundUser) {
-      const { passwordHash, ...userWithoutPassword } = foundUser;
-      console.log('Login - Usuário logado com sucesso:', userWithoutPassword);
-      setUser(userWithoutPassword);
-      localStorage.setItem('daviflow_current_user', JSON.stringify(userWithoutPassword));
+    } catch (error) {
+      console.error('Login - Erro:', error);
       setIsLoading(false);
-      return true;
+      return false;
     }
-    
-    console.log('Login - Credenciais inválidas');
-    setIsLoading(false);
-    return false;
   };
 
   const logout = () => {
@@ -122,45 +119,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    const storedUsers = getStoredUsers();
-    
-    // Verificar se email já existe
-    const emailExists = storedUsers.some((u: any) => u.email.toLowerCase() === userData.email.toLowerCase()) ||
-                      userData.email.toLowerCase() === ADMIN_USER.email.toLowerCase();
-    
-    if (emailExists) {
+    try {
+      // Verificar se email já existe
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', userData.email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        return false; // Email já existe
+      }
+
+      // Criar perfil
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          name: userData.name,
+          email: userData.email.toLowerCase(),
+          role: userData.role
+        })
+        .select()
+        .single();
+
+      if (profileError || !profile) {
+        console.error('Erro ao criar perfil:', profileError);
+        return false;
+      }
+
+      // Criar autenticação
+      const { error: authError } = await supabase
+        .from('user_auth')
+        .insert({
+          profile_id: profile.id,
+          password_hash: userData.password
+        });
+
+      if (authError) {
+        console.error('Erro ao criar autenticação:', authError);
+        // Remover perfil se falhou ao criar auth
+        await supabase.from('profiles').delete().eq('id', profile.id);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
       return false;
     }
-
-    const newUser = {
-      id: Date.now().toString(),
-      name: userData.name,
-      email: userData.email,
-      role: userData.role,
-      clientId: userData.clientId,
-      passwordHash: userData.password // Em produção, use hash real
-    };
-
-    const updatedUsers = [...storedUsers, newUser];
-    saveUsers(updatedUsers);
-    
-    return true;
   };
 
-  const getAllUsers = (): User[] => {
-    const storedUsers = getStoredUsers();
-    const { passwordHash, ...adminWithoutPassword } = ADMIN_USER;
-    
-    return [
-      adminWithoutPassword,
-      ...storedUsers.map((u: any) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        clientId: u.clientId
-      }))
-    ];
+  const getAllUsers = async (): Promise<User[]> => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar usuários:', error);
+        return [];
+      }
+
+      return profiles.map(profile => ({
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as 'admin' | 'client'
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      return [];
+    }
   };
 
   const contextValue = {
