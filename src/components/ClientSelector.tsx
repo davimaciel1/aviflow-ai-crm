@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Check, X } from "lucide-react";
 import { useClients, type Client } from "@/hooks/useClients";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ClientSelectorProps {
   value?: string;
@@ -17,6 +19,7 @@ interface ClientSelectorProps {
 
 const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar cliente..." }: ClientSelectorProps) => {
   const { clients, addClient, isLoading } = useClients();
+  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newClientData, setNewClientData] = useState<Partial<Client>>({
     status: "prospect"
@@ -24,35 +27,74 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
 
   const handleCreateClient = async () => {
     if (!newClientData.name || !newClientData.company || !newClientData.email) {
-      alert("Por favor, preencha pelo menos o nome, empresa e email.");
+      toast({
+        title: "Erro",
+        description: "Por favor, preencha pelo menos o nome, empresa e email.",
+        variant: "destructive"
+      });
       return;
     }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newClientData.email)) {
-      alert("Por favor, insira um email válido.");
+      toast({
+        title: "Erro",
+        description: "Por favor, insira um email válido.",
+        variant: "destructive"
+      });
       return;
     }
 
-    const clientToAdd = {
-      name: newClientData.name || "",
-      company: newClientData.company || "",
-      email: newClientData.email || "",
-      phone: newClientData.phone || "",
-      status: (newClientData.status as "prospect" | "qualified" | "client" | "inactive") || "prospect",
-      user_id: "temp-user-id" // This should be replaced with actual user ID when auth is implemented
-    };
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let userId: string;
+      if (user?.id) {
+        userId = user.id;
+      } else {
+        // Generate a random UUID if no user is authenticated
+        userId = crypto.randomUUID();
+        console.log('No authenticated user found, using generated UUID:', userId);
+      }
 
-    const result = await addClient(clientToAdd);
-    
-    if (result) {
-      console.log('Cliente criado com sucesso:', result);
-      onValueChange(result.id);
-      setNewClientData({ status: "prospect" });
-      setIsCreateDialogOpen(false);
-    } else {
-      alert("Erro ao criar cliente. Tente novamente.");
+      const clientToAdd = {
+        name: newClientData.name || "",
+        company: newClientData.company || "",
+        email: newClientData.email || "",
+        phone: newClientData.phone || "",
+        status: (newClientData.status as "prospect" | "qualified" | "client" | "inactive") || "prospect",
+        user_id: userId
+      };
+
+      console.log('Creating client with data:', clientToAdd);
+
+      const result = await addClient(clientToAdd);
+      
+      if (result) {
+        console.log('Cliente criado com sucesso:', result);
+        onValueChange(result.id);
+        setNewClientData({ status: "prospect" });
+        setIsCreateDialogOpen(false);
+        toast({
+          title: "Sucesso",
+          description: "Cliente criado com sucesso!"
+        });
+      } else {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar cliente. Tente novamente.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleCreateClient:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar cliente. Tente novamente.",
+        variant: "destructive"
+      });
     }
   };
 
