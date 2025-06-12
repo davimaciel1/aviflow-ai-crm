@@ -46,7 +46,6 @@ interface Deal {
   contact?: string;
   confidential?: string;
   createdAt: string;
-  assignedUserId?: string; // ID do usuário designado para este deal
 }
 
 interface Stage {
@@ -61,7 +60,7 @@ const KanbanBoard = () => {
 
   console.log('KanbanBoard - User:', user);
 
-  // Mock data with assigned users
+  // Mock data and state management
   const mockClients: Client[] = [
     {
       id: '1',
@@ -100,8 +99,7 @@ const KanbanBoard = () => {
       priority: 'high',
       contact: 'João Silva - CEO',
       confidential: 'Orçamento aprovado pela diretoria',
-      createdAt: '2024-01-15',
-      assignedUserId: user?.id // Admin pode ver todos
+      createdAt: '2024-01-15'
     },
     {
       id: '2',
@@ -112,8 +110,7 @@ const KanbanBoard = () => {
       stage: '2',
       priority: 'medium',
       contact: 'Maria Santos - Marketing',
-      createdAt: '2024-01-20',
-      assignedUserId: 'client-user-id-1' // Seria designado para um cliente específico
+      createdAt: '2024-01-20'
     },
     {
       id: '3',
@@ -125,8 +122,7 @@ const KanbanBoard = () => {
       priority: 'high',
       contact: 'Pedro Oliveira - CTO',
       confidential: 'Prazo apertado para lançamento',
-      createdAt: '2024-01-25',
-      assignedUserId: user?.id // Designado para o usuário atual
+      createdAt: '2024-01-25'
     },
     {
       id: '4',
@@ -137,8 +133,7 @@ const KanbanBoard = () => {
       stage: '4',
       priority: 'medium',
       contact: 'João Silva - CEO',
-      createdAt: '2024-02-01',
-      assignedUserId: 'other-user-id' // Designado para outro usuário
+      createdAt: '2024-02-01'
     },
     {
       id: '5',
@@ -149,8 +144,7 @@ const KanbanBoard = () => {
       stage: '1',
       priority: 'low',
       contact: 'Maria Santos - Diretora',
-      createdAt: '2024-02-05',
-      assignedUserId: user?.id // Designado para o usuário atual
+      createdAt: '2024-02-05'
     }
   ];
 
@@ -177,18 +171,17 @@ const KanbanBoard = () => {
     }
   ];
 
-  // Filter stages based on user role and assigned deals
+  // Filter stages based on user role
   const getFilteredStages = () => {
     if (isClientView) {
-      // Para clientes, mostrar apenas deals designados para eles
+      // For clients, show deals related to their email
+      const clientEmail = user?.email;
       return allStages.map(stage => ({
         ...stage,
-        deals: stage.deals.filter(deal => deal.assignedUserId === user?.id)
+        deals: stage.deals.filter(deal => deal.client?.email === clientEmail)
       })).filter(stage => stage.deals.length > 0);
-    } else {
-      // Para admins, mostrar todos os deals
-      return allStages;
     }
+    return allStages;
   };
 
   const [stages, setStages] = useState<Stage[]>(getFilteredStages());
@@ -215,8 +208,7 @@ const KanbanBoard = () => {
       client: mockClients.find(c => c.id === newDealClient),
       stage: selectedStageId,
       priority: newDealPriority,
-      createdAt: new Date().toISOString().split('T')[0],
-      assignedUserId: user?.id // Deals criados são designados para o usuário que os criou
+      createdAt: new Date().toISOString().split('T')[0]
     };
 
     setStages(prevStages =>
@@ -259,11 +251,11 @@ const KanbanBoard = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-slate-900">
-            {isClientView ? "Meus Projetos Designados" : "Pipeline de Vendas"}
+            {isClientView ? "Meus Projetos" : "Pipeline de Vendas"}
           </h2>
           <p className="text-slate-600">
             {isClientView 
-              ? "Projetos que foram designados especificamente para você" 
+              ? "Acompanhe o progresso dos seus projetos" 
               : "Gerencie seus deals e acompanhe o progresso"}
           </p>
         </div>
@@ -377,21 +369,6 @@ const KanbanBoard = () => {
         )}
       </div>
 
-      {/* Message when client has no assigned deals */}
-      {isClientView && stages.length === 0 && (
-        <div className="text-center py-12">
-          <div className="max-w-md mx-auto">
-            <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">
-              Nenhum projeto designado
-            </h3>
-            <p className="text-slate-600">
-              Você ainda não tem projetos designados para você. Entre em contato com a administração para mais informações.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Kanban Board */}
       <div className="flex space-x-6 overflow-x-auto pb-6">
         {stages.map((stage) => (
@@ -502,7 +479,7 @@ const KanbanBoard = () => {
                                 </div>
                               )}
                               
-                              {deal.confidential && !isClientView && (
+                              {deal.confidential && (
                                 <div>
                                   <Label className="text-sm font-medium text-slate-700">Informações Confidenciais</Label>
                                   <p className="text-slate-600 mt-1 italic">{deal.confidential}</p>
@@ -570,12 +547,10 @@ const KanbanBoard = () => {
                           <div className="text-center py-8 text-slate-500">
                             <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                             <p>Nenhuma nota adicionada ainda</p>
-                            {!isClientView && (
-                              <Button variant="outline" className="mt-4">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Adicionar Nota
-                              </Button>
-                            )}
+                            <Button variant="outline" className="mt-4">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Adicionar Nota
+                            </Button>
                           </div>
                         </TabsContent>
                       </Tabs>
