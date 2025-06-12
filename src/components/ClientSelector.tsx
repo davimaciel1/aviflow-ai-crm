@@ -48,15 +48,15 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
 
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      let userId: string;
-      if (user?.id) {
-        userId = user.id;
-      } else {
-        // Generate a random UUID if no user is authenticated
-        userId = crypto.randomUUID();
-        console.log('No authenticated user found, using generated UUID:', userId);
+      if (userError || !user?.id) {
+        toast({
+          title: "Erro de Autenticação",
+          description: "Você precisa estar logado para criar clientes. Por favor, faça login primeiro.",
+          variant: "destructive"
+        });
+        return;
       }
 
       const clientToAdd = {
@@ -65,7 +65,7 @@ const ClientSelector = ({ value, onValueChange, placeholder = "Selecionar client
         email: newClientData.email || "",
         phone: newClientData.phone || "",
         status: (newClientData.status as "prospect" | "qualified" | "client" | "inactive") || "prospect",
-        user_id: userId
+        user_id: user.id
       };
 
       console.log('Creating client with data:', clientToAdd);
