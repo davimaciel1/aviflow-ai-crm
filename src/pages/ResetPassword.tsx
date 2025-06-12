@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,6 @@ const ResetPassword = () => {
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
@@ -26,22 +26,12 @@ const ResetPassword = () => {
         console.log('Current URL:', window.location.href);
         console.log('Hash:', window.location.hash);
         console.log('Pathname:', window.location.pathname);
-        console.log('Location search:', location.search);
         
-        // First check if there are tokens in the URL hash
-        let hashParams = new URLSearchParams();
-        if (window.location.hash) {
-          // Remove the # and parse
-          hashParams = new URLSearchParams(window.location.hash.substring(1));
-        }
-        
-        // Also check URL search params as fallback
-        const searchParams = new URLSearchParams(location.search);
-        
-        // Get tokens from either hash or search params
-        const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
-        const type = hashParams.get('type') || searchParams.get('type');
+        // Extract tokens from URL hash (Supabase format)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
 
         console.log('Extracted params:', { 
           accessToken: accessToken ? 'EXISTS' : 'MISSING', 
@@ -106,9 +96,8 @@ const ResetPassword = () => {
       }
     };
 
-    // Run immediately without delay to process tokens quickly
     handleAuthRedirect();
-  }, [location]);
+  }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
